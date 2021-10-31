@@ -44,13 +44,21 @@ public class Clox {
         Scanner scanner = new Scanner(source);
         List<Token> tokens = scanner.scanTokens();
 
-        for(Token token: tokens) {
-            System.out.println(token);
-        }
+        Parser parser = new Parser(tokens);
+        Expr expression = parser.parse();
+        if (hadError) return;
+        System.out.println(new AstPrinter().print(expression));
     }
 
     public static void error(int line, String msg) {
         report(line, "", msg);
+    }
+    static void error(Token token, String message) {
+        if (token.type == TokenType.EOF) {
+            report(token.line, " at end", message);
+        } else {
+            report(token.line, " at '" + token.lexeme + "'", message);
+        }
     }
 
     private static void report(int line, String where, String msg) {

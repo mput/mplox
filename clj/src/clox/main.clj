@@ -1,13 +1,26 @@
 (ns clox.main
   (:require
-   [clox.scanner :as scanner]))
+   [clox.scanner :as scanner]
+   [clox.parser :as parser]))
 
 (defn run [source]
   (let [{:keys [tokens errors]} (scanner/scanner source)]
     (doseq [error errors]
       (println error))
     (doseq [token tokens]
-      (println token))))
+      (println token))
+    (if (seq errors)
+      (do
+        (println "Errors in scanner!")
+        (System/exit 0))
+      (let [expression (parser/parse tokens)]
+        (println "Parsed expression:")
+        (clojure.pprint/pprint expression)))))
+
+(comment
+  (run "2 + 3")
+
+  )
 
 (defn run-prompt []
   (loop []

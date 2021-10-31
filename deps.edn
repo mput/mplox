@@ -2,8 +2,8 @@
  :deps  {org.clojure/clojure {:mvn/version "1.10.3"}}
 
  :aliases {:run {:main-opts ["-m" "clox.main"]}
-           :nrepl {:extra-deps {refactor-nrepl/refactor-nrepl {:mvn/version "2.5.1"}
-                                cider/cider-nrepl {:mvn/version "0.26.0"}}
+           :nrepl {:extra-deps {refactor-nrepl/refactor-nrepl {:mvn/version "3.0.0"}
+                                cider/cider-nrepl {:mvn/version "0.27.2"}}
                    :main-opts ["-m" "nrepl.cmdline"
                                "--middleware"
                                "[refactor-nrepl.middleware/wrap-refactor,cider.nrepl/cider-middleware]"
