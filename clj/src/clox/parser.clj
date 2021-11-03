@@ -19,66 +19,60 @@
    ::current 0
    ::errors []})
 
-
-(defn- get-current [{::keys [tokens current]}]
+(defn- get-current-token [{::keys [tokens current]}]
   (nth tokens current))
 
-(defn- consume [ctx]
+(defn- consume-token [ctx]
   (update ctx ::current inc))
 
 (defn- set-expr [ctx expr]
   (assoc ctx ::expr expr))
 
-(defn- get-expr [ctx expr]
-  (::expr ctx))
-
-
-(defn- match [ctx & token-types]
+(defn- match-token [ctx & token-types]
   (loop [[token & rest] token-types]
     (if token
-      (or (= (:type (get-current ctx))
+      (or (= (:type (get-current-token ctx))
              token)
           (recur rest))
       false)))
 
+(defn- binary-creator [ctx base & operators]
+  (loop [left (base ctx)]
+    (if (apply match-token left operators)
+      (let [operator (get-current-token left)
+            right (base (consume-token left))
+            expression (expr/new ::expr/binary
+                                 (::expr left)
+                                 operator
+                                 (::expr right))]
+        (recur (set-expr right expression)))
+      left)))
+
 (defn- primary [ctx]
-  (let [val (get-current ctx)]
-    (consume (set-expr ctx val))
-    )
-  )
+  (let [val (get-current-token ctx)]
+    (consume-token (set-expr ctx val))))
 
-(defn- factor [ctx]
-  (primary ctx))
+(defn- factor [ctx] (binary-creator ctx primary ::scanner/slash ::scanner/star))
+(defn- term [ctx] (binary-creator ctx factor ::scanner/plus ::scanner/minus))
+(defn- comprison [ctx]
+  (binary-creator ctx term
+                  ::scanner/greater
+                  ::scanner/greater-equal
+                  ::scanner/less
+                  ::scanner/less-equal))
 
-(defn- term [ctx']
-  (loop [{left-expr ::expr :as ctx} (factor ctx')]
-    (if (match ctx ::scanner/plus ::scanner/minus)
-      (recur (let [operator (get-current ctx)
-
-                   {right-expr ::expr :as ctx'}
-                   (factor (consume ctx))
-
-                   expression (expr/new ::expr/binary
-                                        left-expr
-                                        operator
-                                        right-expr)]
-               (set-expr ctx' expression)))
-      ctx)))
-
-;; (defn- equality [ctx]
-;;   {})
+(defn- equality [ctx]
+  (binary-creator ctx comprison
+                  ::scanner/bang-equal ::scanner/equal))
 
 (defn- expression [ctx]
-  #_(equality ctx)
-  (term ctx))
+  (equality ctx))
 
 (defn parse [tokens]
-  (expression (new-parser-context tokens))
-  )
-
+  (expression (new-parser-context tokens)))
 
 (comment
-  (::expr (parse (:tokens (clox.scanner/scanner "2 - 3 + 4"))))
+  (::expr (parse (:tokens (clox.scanner/scanner " 2 + 3 + 4 = 4"))))
 
 
   )
