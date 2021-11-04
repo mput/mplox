@@ -4,7 +4,7 @@
   {::binary [:left :operator :right]
    ::grouping [:expression]
    ::literal [:value]
-   ::unare [:operator :right]})
+   ::unary [:operator :right]})
 
 (defn new
   [type & operands]

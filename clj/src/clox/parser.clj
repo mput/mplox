@@ -22,11 +22,15 @@
 (defn- get-current-token [{::keys [tokens current]}]
   (nth tokens current))
 
-(defn- consume-token [ctx]
+(defn- advance [ctx]
   (update ctx ::current inc))
+
+
 
 (defn- set-expr [ctx expr]
   (assoc ctx ::expr expr))
+
+
 
 (defn- match-token [ctx & token-types]
   (loop [[token & rest] token-types]
@@ -36,11 +40,28 @@
           (recur rest))
       false)))
 
+(defn create-error
+  [token msg]
+  {:message   msg
+   :token    token})
+
+(defn- throw-parser-error [ctx msg]
+  (throw (ex-info "Parser error"
+                  (-> ctx
+                      (update ::errors  conj
+                              (create-error (get-current-token ctx) msg))))))
+
+
+(defn- consume-with-check [ctx token-type msg]
+  (if (match-token ctx token-type)
+    (advance ctx)
+    (throw-parser-error ctx msg)))
+
 (defn- binary-creator [ctx base & operators]
   (loop [left (base ctx)]
     (if (apply match-token left operators)
       (let [operator (get-current-token left)
-            right (base (consume-token left))
+            right (base (advance left))
             expression (expr/new ::expr/binary
                                  (::expr left)
                                  operator
@@ -48,11 +69,36 @@
         (recur (set-expr right expression)))
       left)))
 
-(defn- primary [ctx]
-  (let [val (get-current-token ctx)]
-    (consume-token (set-expr ctx val))))
+(declare expression)
 
-(defn- factor [ctx] (binary-creator ctx primary ::scanner/slash ::scanner/star))
+(defn- primary [ctx]
+  (cond
+    (match-token ctx ::scanner/number ::scanner/string
+                 ::scanner/true ::scanner/false ::scanner/nil)
+    (advance (set-expr ctx (get-current-token ctx)))
+
+    (match-token ctx ::scanner/lparen)
+    (let [lprn (advance ctx)
+          grp (expression lprn)
+          exp (expr/new ::expr/grouping
+                        (::expr grp))]
+      (set-expr (consume-with-check grp
+                                    ::scanner/rparen
+                                    "Expect ')' after expression.")
+                exp))
+
+    :else (throw-parser-error ctx "Expect expression.")))
+
+(defn- unary [ctx]
+  (if (match-token ctx ::scanner/bang ::scanner/minus)
+    (let [operator (get-current-token ctx)
+          right (unary (advance ctx))]
+      (set-expr right (expr/new ::expr/unary
+                                operator
+                                (::expr right))))
+    (primary ctx)))
+
+(defn- factor [ctx] (binary-creator ctx unary ::scanner/slash ::scanner/star))
 (defn- term [ctx] (binary-creator ctx factor ::scanner/plus ::scanner/minus))
 (defn- comprison [ctx]
   (binary-creator ctx term
@@ -63,7 +109,7 @@
 
 (defn- equality [ctx]
   (binary-creator ctx comprison
-                  ::scanner/bang-equal ::scanner/equal))
+                  ::scanner/bang-equal ::scanner/equal-equal))
 
 (defn- expression [ctx]
   (equality ctx))
@@ -72,7 +118,10 @@
   (expression (new-parser-context tokens)))
 
 (comment
-  (::expr (parse (:tokens (clox.scanner/scanner " 2 + 3 + 4 = 4"))))
+  (parse (:tokens (clox.scanner/scanner " (2 + 3) * 4 == 4")))
 
+  (parse (:tokens (clox.scanner/scanner " (2 + 4) == 4")))
+
+  (::expr (parse (:tokens (clox.scanner/scanner "--2 "))))
 
   )
