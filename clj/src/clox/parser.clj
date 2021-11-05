@@ -25,12 +25,8 @@
 (defn- advance [ctx]
   (update ctx ::current inc))
 
-
-
 (defn- set-expr [ctx expr]
   (assoc ctx ::expr expr))
-
-
 
 (defn- match-token [ctx & token-types]
   (loop [[token & rest] token-types]
@@ -43,7 +39,7 @@
 (defn create-error
   [token msg]
   {:message   msg
-   :token    token})
+   :token     token})
 
 (defn- throw-parser-error [ctx msg]
   (throw (ex-info "Parser error"
@@ -73,9 +69,18 @@
 
 (defn- primary [ctx]
   (cond
-    (match-token ctx ::scanner/number ::scanner/string
-                 ::scanner/true ::scanner/false ::scanner/nil)
-    (advance (set-expr ctx (get-current-token ctx)))
+    (match-token ctx ::scanner/number ::scanner/string)
+    (advance (set-expr ctx (expr/new ::expr/literal
+                                     (:literal (get-current-token ctx)))))
+
+    (match-token ctx ::scanner/true ::scanner/false ::scanner/nil)
+    (advance (set-expr ctx (expr/new ::expr/literal true)))
+
+    (match-token ctx ::scanner/false)
+    (advance (set-expr ctx (expr/new ::expr/literal false)))
+
+    (match-token ctx ::scanner/nil)
+    (advance (set-expr ctx (expr/new ::expr/literal nil)))
 
     (match-token ctx ::scanner/lparen)
     (let [lprn (advance ctx)
@@ -115,13 +120,18 @@
   (equality ctx))
 
 (defn parse [tokens]
-  (expression (new-parser-context tokens)))
+  (try (expression (new-parser-context tokens))
+       (catch clojure.lang.ExceptionInfo e
+         (println (ex-message e))
+         (ex-data e))))
 
 (comment
   (parse (:tokens (clox.scanner/scanner " (2 + 3) * 4 == 4")))
 
   (parse (:tokens (clox.scanner/scanner " (2 + 4) == 4")))
 
-  (::expr (parse (:tokens (clox.scanner/scanner "--2 "))))
+  (parse (:tokens (clox.scanner/scanner "5")))
+
+  (parse (:tokens (clox.scanner/scanner "!true")))
 
   )
