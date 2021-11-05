@@ -2,9 +2,9 @@
 
 (def expression
   {::binary [:left :operator :right]
+   ::unary [:operator :right]
    ::grouping [:expression]
-   ::literal [:value]
-   ::unary [:operator :right]})
+   ::literal [:value]})
 
 (defn new
   [type & operands]

@@ -1,24 +1,29 @@
 (ns clox.main
   (:require
    [clox.scanner :as scanner]
-   [clox.parser :as parser]))
+   [clox.parser :as parser]
+   [clox.ast-printer :as ast-printer]
+   [clojure.pprint]))
 
 (defn run [source]
   (let [{:keys [tokens errors]} (scanner/scanner source)]
-    (doseq [error errors]
-      (println error))
-    (doseq [token tokens]
-      (println token))
     (if (seq errors)
       (do
         (println "Errors in scanner!")
+        (doseq [err errors]
+          (println err))
         (System/exit 0))
-      (let [expression (parser/parse tokens)]
-        (println "Parsed expression:")
-        (clojure.pprint/pprint expression)))))
+      (let [{::parser/keys [expr errors]} (parser/parse tokens)]
+        (if (seq errors)
+          (do
+            (println "Parsed expression:")
+            (doseq [err errors]
+              (println err))
+            (System/exit 0))
+          (println (ast-printer/ast->lisp expr)))))))
 
 (comment
-  (run "2 + 3")
+  (run "4 * (2 + 3)")
 
   )
 
