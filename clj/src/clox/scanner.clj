@@ -6,7 +6,7 @@
     "this" "true" "var" "while"})
 
 (defn token-type-from-string [s]
-  (keyword (str *ns*) s))
+  (keyword "clox.scanner" s))
 
 (defn create-token
   ([type lexeme literal line]
@@ -160,7 +160,7 @@
 
       \" (match-string ctx)
 
-      (\space \t) ctx
+      (\space \tab) ctx
       \newline (next-line ctx)
 
       (cond
@@ -194,5 +194,8 @@
 
   (scanner "dsaf adsf if (54)
 dd ]]")
+
+  (scanner "true")
+
 
   )
