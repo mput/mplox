@@ -1,6 +1,7 @@
 (ns clox.interpreter
   (:require [clox.expression :as expr]
-            [clox.scanner :as scanner]))
+            [clox.scanner :as scanner]
+            [clojure.string :as str]))
 
 (defn- trusy? [val]
   (cond
@@ -113,6 +114,23 @@
 (defmethod evaluate ::expr/literal
   [{:keys [value]}]
   value)
+
+(defn strinfigy [val]
+  (cond
+    (nil? val) "null"
+
+    (double? val)
+    (if (str/ends-with? (str val) ".0")
+      (subs (str val) 0 (- (count (str val)) 2))
+      (str val))
+
+    :else (str val)))
+
+
+;; (defn interpret [expr]
+;;   (let [res (evaluate expr)]
+;;       (println (strinfigy res)))
+;;   )
 
 (comment
   (defn- ev [s]

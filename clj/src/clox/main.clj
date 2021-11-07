@@ -3,27 +3,36 @@
    [clox.scanner :as scanner]
    [clox.parser :as parser]
    [clox.ast-printer :as ast-printer]
+   [clox.interpreter :as interpreter]
    [clojure.pprint]))
 
-(defn run [source]
+(defn run [source & [dont-exit-on-error?]]
   (let [{:keys [tokens errors]} (scanner/scanner source)]
     (if (seq errors)
       (do
         (println "Errors in scanner!")
         (doseq [err errors]
           (println err))
-        (System/exit 0))
+        (or dont-exit-on-error? (System/exit 0)))
       (let [{::parser/keys [expr errors]} (parser/parse tokens)]
         (if (seq errors)
           (do
             (println "Parsed expression:")
             (doseq [err errors]
               (println err))
-            (System/exit 0))
-          (println (ast-printer/ast->lisp expr)))))))
+            (or dont-exit-on-error? (System/exit 0)))
+          (try (println (interpreter/strinfigy (interpreter/evaluate expr)))
+               (catch Throwable e
+                 (println (ex-message e))
+                 (clojure.pprint/pprint (ex-data e)))))))))
+
+(defn ev-str [s]
+  (interpreter/strinfigy
+   (interpreter/evaluate
+     (:clox.parser/expr (parser/parse (:tokens (scanner/scanner s)))))))
 
 (comment
-  (run "4 * (2 + 3)")
+  (ev-str "4 * (2 + 3)")
 
   )
 
@@ -36,7 +45,7 @@
           nil (do
                 (println "GoodBay!")
                 (System/exit 0))
-          "" (run source)
+          "" (run source true)
           (recur (str source code-line "\n")))))
     (recur)))
 
