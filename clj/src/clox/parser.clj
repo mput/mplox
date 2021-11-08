@@ -15,18 +15,21 @@
 
 (defn- new-parser-context [tokens]
   {::tokens tokens
-   ::expr nil
+   ::ast-node nil
    ::current 0
+   ::statements []
    ::errors []})
 
 (defn- get-current-token [{::keys [tokens current]}]
   (nth tokens current))
 
+
+
 (defn- advance [ctx]
   (update ctx ::current inc))
 
-(defn- set-expr [ctx expr]
-  (assoc ctx ::expr expr))
+(defn- set-ast-node [ctx expr]
+  (assoc ctx ::ast-node expr))
 
 (defn- match-token [ctx & token-types]
   (loop [[token & rest] token-types]
@@ -35,6 +38,9 @@
              token)
           (recur rest))
       false)))
+
+(defn- at-eof? [ctx]
+  (match-token ctx ::scanner/eof))
 
 (defn create-error
   [token msg]
@@ -59,10 +65,10 @@
       (let [operator (get-current-token left)
             right (base (advance left))
             expression (ast/new :expr/binary
-                                 (::expr left)
+                                 (::ast-node left)
                                  operator
-                                 (::expr right))]
-        (recur (set-expr right expression)))
+                                 (::ast-node right))]
+        (recur (set-ast-node right expression)))
       left)))
 
 (declare expression)
@@ -70,24 +76,24 @@
 (defn- primary [ctx]
   (cond
     (match-token ctx ::scanner/number ::scanner/string)
-    (advance (set-expr ctx (ast/new :expr/literal
+    (advance (set-ast-node ctx (ast/new :expr/literal
                                      (:literal (get-current-token ctx)))))
 
     (match-token ctx ::scanner/true ::scanner/false ::scanner/nil)
-    (advance (set-expr ctx (ast/new :expr/literal true)))
+    (advance (set-ast-node ctx (ast/new :expr/literal true)))
 
     (match-token ctx ::scanner/false)
-    (advance (set-expr ctx (ast/new :expr/literal false)))
+    (advance (set-ast-node ctx (ast/new :expr/literal false)))
 
     (match-token ctx ::scanner/nil)
-    (advance (set-expr ctx (ast/new :expr/literal nil)))
+    (advance (set-ast-node ctx (ast/new :expr/literal nil)))
 
     (match-token ctx ::scanner/lparen)
     (let [lprn (advance ctx)
           grp (expression lprn)
           exp (ast/new :expr/grouping
-                        (::expr grp))]
-      (set-expr (consume-with-check grp
+                        (::ast-node grp))]
+      (set-ast-node (consume-with-check grp
                                     ::scanner/rparen
                                     "Expect ')' after expression.")
                 exp))
@@ -98,9 +104,9 @@
   (if (match-token ctx ::scanner/bang ::scanner/minus)
     (let [operator (get-current-token ctx)
           right (unary (advance ctx))]
-      (set-expr right (ast/new :expr/unary
+      (set-ast-node right (ast/new :expr/unary
                                 operator
-                                (::expr right))))
+                                (::ast-node right))))
     (primary ctx)))
 
 (defn- factor [ctx] (binary-creator ctx unary ::scanner/slash ::scanner/star))
@@ -119,18 +125,40 @@
 (defn- expression [ctx]
   (equality ctx))
 
+(defn- base-statement [ctx type]
+  (let [expr (expression ctx)]
+    (set-ast-node
+     (consume-with-check expr
+                         ::scanner/semicolon
+                         "Expect ';' after expression.")
+     (ast/new type (::ast-node expr)))))
+
+(defn- statement [ctx]
+  (cond
+    (match-token ctx ::scanner/print)
+    (base-statement (advance ctx) :stmt/print)
+
+    :else
+    (base-statement ctx :stmt/expression)))
+
 (defn parse [tokens]
-  (try (expression (new-parser-context tokens))
-       (catch clojure.lang.ExceptionInfo e
-         (println (ex-message e))
-         (ex-data e))))
+  (try
+    (loop [ctx (new-parser-context tokens)]
+      (if (at-eof? ctx)
+        ctx
+        (recur (let [{statement ::ast-node :as res} (statement ctx)]
+                 (-> res
+                     (update ::statements conj statement))))))
+    (catch clojure.lang.ExceptionInfo e
+      (println (ex-message e))
+      (ex-data e))))
 
 (comment
   (parse (:tokens (clox.scanner/scanner " (2 + 3) * 4 == 4")))
 
   (parse (:tokens (clox.scanner/scanner " (2 + 4) == 4")))
 
-  (parse (:tokens (clox.scanner/scanner "5")))
+  (parse (:tokens (clox.scanner/scanner "print 5; (2 + 4) == 4;")))
 
   (parse (:tokens (clox.scanner/scanner "!true")))
 

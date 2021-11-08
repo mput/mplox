@@ -14,14 +14,14 @@
         (doseq [err errors]
           (println err))
         (or dont-exit-on-error? (System/exit 0)))
-      (let [{::parser/keys [expr errors]} (parser/parse tokens)]
+      (let [{::parser/keys [ast-node errors]} (parser/parse tokens)]
         (if (seq errors)
           (do
             (println "Parsed expression:")
             (doseq [err errors]
               (println err))
             (or dont-exit-on-error? (System/exit 0)))
-          (try (println (interpreter/strinfigy (interpreter/evaluate expr)))
+          (try (println (interpreter/strinfigy (interpreter/evaluate ast-node)))
                (catch Throwable e
                  (println (ex-message e))
                  (clojure.pprint/pprint (ex-data e)))))))))
@@ -29,7 +29,7 @@
 (defn ev-str [s]
   (interpreter/strinfigy
    (interpreter/evaluate
-     (:clox.parser/expr (parser/parse (:tokens (scanner/scanner s)))))))
+     (:clox.parser/ast-node (parser/parse (:tokens (scanner/scanner s)))))))
 
 (comment
   (ev-str "4 * (2 + 3)")

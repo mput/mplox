@@ -136,7 +136,7 @@
 (comment
   (defn- ev [s]
     (evaluate
-     (:clox.parser/expr (clox.parser/parse (:tokens (clox.scanner/scanner s))))))
+     (:clox.parser/ast-node (clox.parser/parse (:tokens (clox.scanner/scanner s))))))
 
   (ev "5 != 4")
 

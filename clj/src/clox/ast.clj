@@ -4,7 +4,10 @@
   {:expr/binary [:left :operator :right]
    :expr/unary [:operator :right]
    :expr/grouping [:expression]
-   :expr/literal [:value]})
+   :expr/literal [:value]
+
+   :stmt/expression [:expression]
+   :stmt/print [:expression]})
 
 (defn new
   [type & operands]
