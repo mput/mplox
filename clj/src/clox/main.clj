@@ -14,31 +14,27 @@
         (doseq [err errors]
           (println err))
         (or dont-exit-on-error? (System/exit 0)))
-      (let [{::parser/keys [ast-node errors]} (parser/parse tokens)]
+      (let [{::parser/keys [statements errors]} (parser/parse tokens)]
         (if (seq errors)
           (do
             (println "Parsed expression:")
             (doseq [err errors]
               (println err))
             (or dont-exit-on-error? (System/exit 0)))
-          (try (println (interpreter/strinfigy (interpreter/evaluate ast-node)))
+          (try (interpreter/interpret statements)
                (catch Throwable e
                  (println (ex-message e))
                  (clojure.pprint/pprint (ex-data e)))))))))
 
-(defn ev-str [s]
-  (interpreter/strinfigy
-   (interpreter/evaluate
-     (:clox.parser/ast-node (parser/parse (:tokens (scanner/scanner s)))))))
-
 (comment
-  (ev-str "4 * (2 + 3)")
+  (run "print 4.1 * (2 + 3);" :dont-exit)
 
   )
 
 (defn run-prompt []
   (loop []
-    (println ">  ")
+    (print "> ")
+    (flush)
     (loop [source ""]
       (let  [code-line (read-line)]
         (case code-line
@@ -48,6 +44,7 @@
           "" (run source true)
           (recur (str source code-line "\n")))))
     (recur)))
+
 
 (defn run-file [src]
   (let [source (slurp src)]

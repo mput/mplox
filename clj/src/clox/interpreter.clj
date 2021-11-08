@@ -125,11 +125,25 @@
 
     :else (str val)))
 
+(defmulti execute (fn [{t :type}] t))
 
-;; (defn interpret [expr]
-;;   (let [res (evaluate expr)]
-;;       (println (strinfigy res)))
-;;   )
+(defmethod execute
+  :stmt/expression
+  [{:keys [expression]}]
+  (evaluate expression)
+  nil)
+
+(defmethod execute
+  :stmt/print
+  [{:keys [expression]}]
+  (-> expression
+      evaluate
+      strinfigy
+      println))
+
+(defn interpret [stmts]
+  (doseq [stmt stmts]
+    (execute stmt)))
 
 
 
