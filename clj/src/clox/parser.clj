@@ -1,6 +1,6 @@
 (ns clox.parser
   (:require [clox.scanner :as scanner]
-            [clox.expression :as expr]))
+            [clox.ast :as ast]))
 
 ;; expression     → equality ;
 ;; equality       → comparison ( ( "!=" | "==" ) comparison )* ;
@@ -58,7 +58,7 @@
     (if (apply match-token left operators)
       (let [operator (get-current-token left)
             right (base (advance left))
-            expression (expr/new ::expr/binary
+            expression (ast/new :expr/binary
                                  (::expr left)
                                  operator
                                  (::expr right))]
@@ -70,22 +70,22 @@
 (defn- primary [ctx]
   (cond
     (match-token ctx ::scanner/number ::scanner/string)
-    (advance (set-expr ctx (expr/new ::expr/literal
+    (advance (set-expr ctx (ast/new :expr/literal
                                      (:literal (get-current-token ctx)))))
 
     (match-token ctx ::scanner/true ::scanner/false ::scanner/nil)
-    (advance (set-expr ctx (expr/new ::expr/literal true)))
+    (advance (set-expr ctx (ast/new :expr/literal true)))
 
     (match-token ctx ::scanner/false)
-    (advance (set-expr ctx (expr/new ::expr/literal false)))
+    (advance (set-expr ctx (ast/new :expr/literal false)))
 
     (match-token ctx ::scanner/nil)
-    (advance (set-expr ctx (expr/new ::expr/literal nil)))
+    (advance (set-expr ctx (ast/new :expr/literal nil)))
 
     (match-token ctx ::scanner/lparen)
     (let [lprn (advance ctx)
           grp (expression lprn)
-          exp (expr/new ::expr/grouping
+          exp (ast/new :expr/grouping
                         (::expr grp))]
       (set-expr (consume-with-check grp
                                     ::scanner/rparen
@@ -98,7 +98,7 @@
   (if (match-token ctx ::scanner/bang ::scanner/minus)
     (let [operator (get-current-token ctx)
           right (unary (advance ctx))]
-      (set-expr right (expr/new ::expr/unary
+      (set-expr right (ast/new :expr/unary
                                 operator
                                 (::expr right))))
     (primary ctx)))

@@ -1,6 +1,5 @@
 (ns clox.interpreter
-  (:require [clox.expression :as expr]
-            [clox.scanner :as scanner]
+  (:require [clox.scanner :as scanner]
             [clojure.string :as str]))
 
 (defn- trusy? [val]
@@ -33,7 +32,7 @@
 
 (defmulti evaluate (fn [{t :type}] t))
 
-(defmethod evaluate ::expr/binary
+(defmethod evaluate :expr/binary
   [{:keys [left operator right]}]
   (let [l-res (evaluate left)
         r-res (evaluate right)]
@@ -95,7 +94,7 @@
 
       )))
 
-(defmethod evaluate ::expr/unary
+(defmethod evaluate :expr/unary
   [{:keys [operator right]}]
   (let [res (evaluate right)]
     (case (:type operator)
@@ -107,11 +106,11 @@
       ::scanner/bang
       (not (trusy? res)))))
 
-(defmethod evaluate ::expr/grouping
+(defmethod evaluate :expr/grouping
   [{:keys [expression]}]
   (evaluate expression))
 
-(defmethod evaluate ::expr/literal
+(defmethod evaluate :expr/literal
   [{:keys [value]}]
   value)
 
@@ -131,6 +130,8 @@
 ;;   (let [res (evaluate expr)]
 ;;       (println (strinfigy res)))
 ;;   )
+
+
 
 (comment
   (defn- ev [s]
