@@ -5,9 +5,11 @@
    :expr/unary [:operator :right]
    :expr/grouping [:expression]
    :expr/literal [:value]
+   :expr/variable [:name]
 
    :stmt/expression [:expression]
-   :stmt/print [:expression]})
+   :stmt/print [:expression]
+   :stmt/var [:name :initializer]})
 
 (defn new
   [type & operands]

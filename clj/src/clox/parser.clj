@@ -2,17 +2,6 @@
   (:require [clox.scanner :as scanner]
             [clox.ast :as ast]))
 
-;; expression     → equality ;
-;; equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-;; comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-;; term           → factor ( ( "-" | "+" ) factor )* ;
-;; factor         → unary ( ( "/" | "*" ) unary )* ;
-;; unary          → ( "!" | "-" ) unary
-;;                | primary ;
-;; primary        → NUMBER | STRING | "true" | "false" | "nil"
-;;                | "(" expression ")" ;
-
-
 (defn- new-parser-context [tokens]
   {::tokens tokens
    ::ast-node nil
@@ -141,22 +130,47 @@
     :else
     (base-statement ctx :stmt/expression)))
 
+(defn- var-declaration [ctx]
+  (let [identifier-ctx (consume-with-check ctx
+                                           ::scanner/identifier
+                                           "Expect 'identifier' after var.")
+        expression-ctx (when (match-token identifier-ctx ::scanner/equal)
+                         (expression (advance identifier-ctx)))
+        final-ctx (or expression-ctx identifier-ctx)]
+    (set-ast-node
+     (consume-with-check final-ctx
+                         ::scanner/semicolon
+                         "Expect ';' after statement.")
+     (ast/new :stmt/var
+              (get-current-token ctx)
+              (::ast-node expression-ctx)))))
+
+(defn- declaration [ctx]
+  (cond
+    (match-token ctx ::scanner/var)
+    (var-declaration (advance ctx))
+
+    :else (statement ctx)))
+
 (defn parse [tokens]
   (try
     (loop [ctx (new-parser-context tokens)]
       (if (at-eof? ctx)
         ctx
-        (recur (let [{statement ::ast-node :as res} (statement ctx)]
+        (recur (let [{statement ::ast-node :as res} (declaration ctx)]
                  (-> res
                      (update ::statements conj statement))))))
     (catch clojure.lang.ExceptionInfo e
       (println (ex-message e))
-      (ex-data e))))
+      (println (ex-data e)))))
 
 (comment
   (parse (:tokens (clox.scanner/scanner " (2 + 3) * 4 == 4")))
 
-  (parse (:tokens (clox.scanner/scanner " (2 + 4) == 4")))
+  (parse (:tokens (clox.scanner/scanner "var help;")))
+
+  (parse (:tokens (clox.scanner/scanner "var help = 4;")))
+
 
   (parse (:tokens (clox.scanner/scanner "print 5; (2 + 4) == 4;")))
 
