@@ -2,7 +2,6 @@
   (:require
    [clox.scanner :as scanner]
    [clox.parser :as parser]
-   [clox.ast-printer :as ast-printer]
    [clox.interpreter :as interpreter]
    [clojure.pprint]))
 
@@ -21,13 +20,16 @@
             (doseq [err errors]
               (println err))
             (or dont-exit-on-error? (System/exit 0)))
-          (try (interpreter/interpret statements)
+          (try (interpreter/interpret statements {})
                (catch Throwable e
                  (println (ex-message e))
-                 (clojure.pprint/pprint (ex-data e)))))))))
+                 (clojure.pprint/pprint e))))))))
 
 (comment
   (run "print 4.1 * (2 + 3);" :dont-exit)
+
+
+  (run "print 4.1;" :dont-exit)
 
   )
 

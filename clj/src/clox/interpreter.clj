@@ -30,89 +30,112 @@
   (when-not (and (double? left) (double? right))
     (throw (runtime-error operator "Operand must be a number."))))
 
-(defmulti evaluate (fn [{t :type}] t))
+(defn- set-result [ctx v]
+  (assoc ctx ::result v))
+
+(defn- get-result [ctx]
+  (::result ctx))
+
+
+(defn- define-env [ctx name-token val]
+  (assoc-in ctx [::values (:lexeme name-token)] val))
+
+(defn- get-env [ctx name-token]
+  (let [v (get-in ctx [::values (:lexeme name-token)] ::not-found)]
+    (when (= v ::not-foune)
+      (runtime-error name-token "Operand must be a number."))
+    v))
+
+
+(defmulti evaluate (fn [_env {t :type}] t))
 
 (defmethod evaluate :expr/binary
-  [{:keys [left operator right]}]
-  (let [l-res (evaluate left)
-        r-res (evaluate right)]
+  [env {:keys [left operator right]}]
+  (let [env (evaluate env left)
+        l-res (get-result env)
+        env (evaluate env right)
+        r-res (get-result env)]
     (case (:type operator)
       ::scanner/plus
       (cond
         (and (number? l-res) (number? r-res))
-        (+ (double l-res) (double r-res))
+        (set-result env (+ (double l-res) (double r-res)))
 
         (and (string? l-res) (string? r-res))
-        (str l-res r-res)
+        (set-result env (str l-res r-res))
         :else (throw
                (runtime-error operator "Operands must be two numbers or two strings.")))
 
       ::scanner/minus
       (do
         (check-number-operands operator l-res r-res)
-        (- (double l-res) (double r-res)))
+        (set-result env (- (double l-res) (double r-res))))
 
       ::scanner/star
       (do
         (check-number-operands operator l-res r-res)
-        (* (double l-res) (double r-res)))
+        (set-result env (* (double l-res) (double r-res))))
 
       ::scanner/slash
       (do
         (check-number-operands operator l-res r-res)
-        (/ (double l-res) (double r-res)))
+        (set-result env (/ (double l-res) (double r-res))))
 
       ::scanner/greater
       (do
         (check-number-operands operator l-res r-res)
-        (> (double l-res) (double r-res)))
+        (set-result env (> (double l-res) (double r-res))))
 
       ::scanner/greater-equal
       (do
         (check-number-operands operator l-res r-res)
-        (>= (double l-res) (double r-res)))
+        (set-result env (>= (double l-res) (double r-res))))
 
       ::scanner/less
       (do
         (check-number-operands operator l-res r-res)
-        (< (double l-res) (double r-res)))
+        (set-result env (< (double l-res) (double r-res))))
 
       ::scanner/less-equal
       (do
         (check-number-operands operator l-res r-res)
-        (<= (double l-res) (double r-res)))
+        (set-result env (<= (double l-res) (double r-res))))
 
       ::scanner/equal-equal
       (do
         (check-number-operands operator l-res r-res)
-        (equal?' (double l-res) (double r-res)))
+        (set-result env (equal?' (double l-res) (double r-res))))
 
       ::scanner/bang-equal
       (do
         (check-number-operands operator l-res r-res)
-        (not (equal?' (double l-res) (double r-res))))
-
-      )))
+        (set-result env (not (equal?' (double l-res) (double r-res))))))))
 
 (defmethod evaluate :expr/unary
-  [{:keys [operator right]}]
-  (let [res (evaluate right)]
+  [env {:keys [operator right]}]
+  (let [env (evaluate env right)
+        res (get-result env)]
     (case (:type operator)
       ::scanner/minus
       (do
         (check-number-operand operator res)
-        (- (double res)))
+        (set-result env (- (double res))))
 
       ::scanner/bang
-      (not (trusy? res)))))
+      (set-result env (not (trusy? res))))))
 
 (defmethod evaluate :expr/grouping
-  [{:keys [expression]}]
-  (evaluate expression))
+  [env {:keys [expression]}]
+  (evaluate env expression))
 
 (defmethod evaluate :expr/literal
-  [{:keys [value]}]
-  value)
+  [env {:keys [value]}]
+  (set-result env value))
+
+
+(defmethod evaluate :expr/variable
+  [env {:keys [name-token]}]
+  (set-result env (get-env env name-token)))
 
 (defn strinfigy [val]
   (cond
@@ -125,25 +148,37 @@
 
     :else (str val)))
 
-(defmulti execute (fn [{t :type}] t))
+(defmulti execute (fn [_env {t :type}] t))
 
 (defmethod execute
   :stmt/expression
-  [{:keys [expression]}]
-  (evaluate expression)
-  nil)
+  [env {:keys [expression]}]
+  (evaluate env expression))
 
 (defmethod execute
   :stmt/print
-  [{:keys [expression]}]
-  (-> expression
-      evaluate
-      strinfigy
-      println))
+  [env {:keys [expression]}]
+  (let [env (evaluate env expression)]
+    (-> env
+        get-result
+        strinfigy
+        println)
+    env))
 
-(defn interpret [stmts]
-  (doseq [stmt stmts]
-    (execute stmt)))
+(defmethod execute
+  :stmt/var
+  [env {:keys [name-token initializer]}]
+  (let [env (if initializer
+              (evaluate env initializer)
+              env)
+        res (when initializer (get-result env))]
+    (define-env env name-token res)))
+
+(defn interpret [stmts envirement]
+  (reduce (fn [ctx stmt]
+            (execute ctx stmt))
+          envirement
+          stmts))
 
 
 
