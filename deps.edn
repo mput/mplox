@@ -1,4 +1,4 @@
-{:paths ["clj/src"]
+{:paths ["clj/src" ]
  :deps  {org.clojure/clojure {:mvn/version "1.10.3"}}
 
  :aliases {:run {:main-opts ["-m" "clox.main"]}
@@ -10,7 +10,7 @@
                                #_"[cider.nrepl/cider-middleware]"]
                    }
 
-           :test {:extra-paths ["test/main/clojure"]
+           :test {:extra-paths ["clj/test"]
                   :extra-deps  {lambdaisland/kaocha {:mvn/version "0.0-529"}}
                   :main-opts   ["-m" "kaocha.runner"]}}
 

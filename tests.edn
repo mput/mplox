@@ -1,0 +1,7 @@
+#kaocha/v1
+{:tests                       [{:id :unit
+                                :test-paths ["clj/test"]
+                                :skip-meta [:xxx]}]
+ :fail-fast?                  true
+ :color?                      true
+ :kaocha.plugin.randomize/randomize? false}
