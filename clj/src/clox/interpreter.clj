@@ -1,6 +1,7 @@
 (ns clox.interpreter
   (:require [clox.scanner :as scanner]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [clox.errors :as errors]))
 
 (defn- trusy? [val]
   (cond
@@ -18,17 +19,13 @@
 
     :else (= v1 v2)))
 
-(defn- runtime-error [token msg]
-  (ex-info msg {:type :runtime-error
-                :token token}))
-
 (defn- check-number-operand [operator operand]
   (when-not (double? operand)
-    (throw (runtime-error operator "Operand must be a number."))))
+    (throw (errors/runtime-error operator "Operand must be a number."))))
 
 (defn- check-number-operands [operator left right]
   (when-not (and (double? left) (double? right))
-    (throw (runtime-error operator "Operand must be a number."))))
+    (throw (errors/runtime-error operator "Operand must be a number."))))
 
 (defn- set-result [ctx v]
   (assoc ctx ::result v))
@@ -43,7 +40,7 @@
 (defn- get-env [ctx name-token]
   (let [v (get-in ctx [::values (:lexeme name-token)] ::not-found)]
     (when (= v ::not-foune)
-      (runtime-error name-token "Operand must be a number."))
+      (errors/runtime-error name-token "Operand must be a number."))
     v))
 
 
@@ -64,7 +61,7 @@
         (and (string? l-res) (string? r-res))
         (set-result env (str l-res r-res))
         :else (throw
-               (runtime-error operator "Operands must be two numbers or two strings.")))
+               (errors/runtime-error operator "Operands must be two numbers or two strings.")))
 
       ::scanner/minus
       (do
