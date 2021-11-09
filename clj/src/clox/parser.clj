@@ -13,7 +13,6 @@
   (nth tokens current))
 
 
-
 (defn- advance [ctx]
   (update ctx ::current inc))
 
@@ -86,6 +85,10 @@
                                     ::scanner/rparen
                                     "Expect ')' after expression.")
                 exp))
+
+    (match-token ctx ::scanner/identifier)
+    (advance (set-ast-node ctx (ast/new :expr/variable
+                                        (get-current-token ctx))))
 
     :else (throw-parser-error ctx "Expect expression.")))
 
@@ -167,7 +170,7 @@
 (comment
   (parse (:tokens (clox.scanner/scanner " (2 + 3) * 4 == 4")))
 
-  (parse (:tokens (clox.scanner/scanner "var help;")))
+  (parse (:tokens (clox.scanner/scanner "help;")))
 
   (parse (:tokens (clox.scanner/scanner "var help = 4;")))
 
