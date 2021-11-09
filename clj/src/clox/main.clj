@@ -5,48 +5,50 @@
    [clox.interpreter :as interpreter]
    [clojure.pprint]))
 
-(defn run [source & [dont-exit-on-error?]]
-  (let [{:keys [tokens errors]} (scanner/scanner source)]
-    (if (seq errors)
-      (do
-        (println "Errors in scanner!")
-        (doseq [err errors]
-          (println err))
-        (or dont-exit-on-error? (System/exit 0)))
-      (let [{::parser/keys [statements errors]} (parser/parse tokens)]
-        (if (seq errors)
-          (do
-            (println "Parsed expression:")
-            (doseq [err errors]
-              (println err))
-            (or dont-exit-on-error? (System/exit 0)))
-          (try (interpreter/interpret statements {})
-               (catch Throwable e
-                 (println (ex-message e))
-                 (clojure.pprint/pprint e))))))))
+(defn run
+  ([source] (run source {}))
+  ([source environment]
+   (let [{:keys [tokens errors]} (scanner/scanner source)]
+     (if (seq errors)
+       (do
+         (println "Errors in scanner!")
+         (doseq [err errors]
+           (println err))
+         ::scanner-error)
+       (let [{::parser/keys [statements errors]} (parser/parse tokens)]
+         (if (seq errors)
+           (do
+             (println "Parsed expression:")
+             (doseq [err errors]
+               (println err))
+             ::parser-error)
+           (try (interpreter/interpret statements environment)
+                (catch Throwable e
+                  (println (ex-message e))
+                  (clojure.pprint/pprint e)
+                  ::runtime-error))))))))
 
 (comment
-  (run "print 4.1 * (2 + 3);" :dont-exit)
-
-
-  (run "print 4.1;" :dont-exit)
+  (run "print 4.1 * (2 + 3);")
+  (run "print 4.1;")
 
   )
 
 (defn run-prompt []
-  (loop []
-    (print "> ")
-    (flush)
-    (loop [source ""]
-      (let  [code-line (read-line)]
-        (case code-line
-          nil (do
-                (println "GoodBay!")
-                (System/exit 0))
-          "" (run source true)
-          (recur (str source code-line "\n")))))
-    (recur)))
-
+  (loop [environment {}]
+    (print "> ") (flush)
+    (let [new-environment
+          (loop [source ""]
+            (let  [code-line (read-line)]
+              (case code-line
+                nil (do
+                      (println "Good Bay!")
+                      (System/exit 0))
+                "" (run source environment)
+                (recur (str source code-line "\n")))))]
+      (recur (if (keyword? new-environment)
+               environment
+               new-environment)))))
 
 (defn run-file [src]
   (let [source (slurp src)]
