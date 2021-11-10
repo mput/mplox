@@ -39,9 +39,16 @@
 
 (defn- get-env [ctx name-token]
   (let [v (get-in ctx [::values (:lexeme name-token)] ::not-found)]
-    (when (= v ::not-foune)
-      (errors/runtime-error name-token "Operand must be a number."))
+    (when (= v ::not-found)
+      (throw (errors/runtime-error name-token
+                                   (str "Undefined variable '"
+                                        (:lexeme name-token)
+                                        "'."))))
     v))
+
+(defn- set-env [ctx name-token val]
+  (get-env ctx name-token)
+  (assoc-in ctx [::values (:lexeme name-token)] val))
 
 
 (defmulti evaluate (fn [_env {t :type}] t))
@@ -133,6 +140,13 @@
 (defmethod evaluate :expr/variable
   [env {:keys [name-token]}]
   (set-result env (get-env env name-token)))
+
+(defmethod evaluate :expr/assign
+  [env {:keys [name-token value]}]
+  (let [env (evaluate env value)
+        val-res (get-result env)
+        env (set-env env name-token val-res)]
+    (set-result env val-res)))
 
 (defn strinfigy [val]
   (cond

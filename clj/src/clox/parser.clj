@@ -114,8 +114,23 @@
   (binary-creator ctx comprison
                   ::scanner/bang-equal ::scanner/equal-equal))
 
+(defn- var-expression? [ast-node]
+  (= :expr/variable (:type ast-node)))
+
+(defn- assignment [ctx]
+  (let [expr (equality ctx)]
+    (if (match-token expr ::scanner/equal)
+      (let [value (assignment (advance expr))]
+        (if (var-expression? (::ast-node expr))
+          (set-ast-node value
+                        (ast/new :expr/assign
+                                 (:name-token (::ast-node expr))
+                                 (::ast-node value)))
+          (throw-parser-error expr "Wrong assignment target")))
+      expr)))
+
 (defn- expression [ctx]
-  (equality ctx))
+  (assignment ctx))
 
 (defn- base-statement [ctx type]
   (let [expr (expression ctx)]
@@ -177,6 +192,6 @@
 
   (parse (:tokens (clox.scanner/scanner "print 5; (2 + 4) == 4;")))
 
-  (parse (:tokens (clox.scanner/scanner "!true")))
+  (parse (:tokens (clox.scanner/scanner "g = f = 4;")))
 
   )

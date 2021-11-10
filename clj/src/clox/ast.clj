@@ -1,7 +1,8 @@
 (ns clox.ast)
 
 (def ast
-  {:expr/binary [:left :operator :right]
+  {:expr/assign [:name-token :value]
+   :expr/binary [:left :operator :right]
    :expr/unary [:operator :right]
    :expr/grouping [:expression]
    :expr/literal [:value]
