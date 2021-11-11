@@ -33,7 +33,8 @@
 (defn create-error
   [token msg]
   {:message   msg
-   :token     token})
+   :token     token
+   :type :parser})
 
 (defn- throw-parser-error [ctx msg]
   (throw (ex-info "Parser error"
@@ -217,8 +218,7 @@
                  (-> res
                      (update ::statements conj statement))))))
     (catch clojure.lang.ExceptionInfo e
-      (println (ex-message e))
-      (println (ex-data e)))))
+      (ex-data e))))
 
 (comment
   (parse (:tokens (clox.scanner/scanner " (2 + 3) * 4 == 4")))

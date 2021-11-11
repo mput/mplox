@@ -38,20 +38,16 @@
                   print a + b;"
                  "26")
 
-  ;; (run-intersept "var a = 10;
-  ;;                 var b;
-  ;;                 a + b = 13;"
-  ;;                nil :true)
+  (run-intersept "var a = 10;
+                  var b;
+                  a + b = 13;"
+                 "[line 3] Error = : Wrong assignment target")
 
-  (t/is (=
-         (run-intersept "a = 13;"
-                        nil :t)
-         :clox.main/runtime-error))
+  (run-intersept "a = 13;"
+                 "Undefined variable 'a'. [line 1]")
 
-  (t/is (=
-         (run-intersept "print a;"
-                        nil :t)
-         :clox.main/runtime-error))
+  (run-intersept "print a;"
+                 "Undefined variable 'a'. [line 1]")
 
   (run-intersept "var a = 1;
                   var b = 2;

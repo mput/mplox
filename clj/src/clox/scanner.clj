@@ -17,9 +17,10 @@
 
 (defn create-error
   [msg lexeme line]
-   {:message   msg
-    :lexeme    lexeme
-    :line      line})
+  {:message   msg
+   :lexeme    lexeme
+   :line      line
+   :type :scanner})
 
 (defn new-context [source]
   {:source source

@@ -3,6 +3,7 @@
    [clox.scanner :as scanner]
    [clox.parser :as parser]
    [clox.interpreter :as interpreter]
+   [clox.errors :as errors]
    [clojure.pprint]))
 
 (defn run
@@ -11,21 +12,18 @@
    (let [{:keys [tokens errors]} (scanner/scanner source)]
      (if (seq errors)
        (do
-         (println "Errors in scanner!")
          (doseq [err errors]
-           (println err))
+           (errors/report err))
          ::scanner-error)
        (let [{::parser/keys [statements errors]} (parser/parse tokens)]
          (if (seq errors)
            (do
-             (println "Parsed expression:")
              (doseq [err errors]
-               (println err))
+               (errors/report err))
              ::parser-error)
            (try (interpreter/interpret statements environment)
                 (catch Throwable e
-                  (println (ex-message e))
-                  (clojure.pprint/pprint e)
+                  (errors/report  (ex-data e))
                   ::runtime-error))))))))
 
 (comment
