@@ -53,6 +53,22 @@
                         nil :t)
          :clox.main/runtime-error))
 
+  (run-intersept "var a = 1;
+                  var b = 2;
+                  var z = 0;
+                  {a = 4;
+                   var z = 3;
+                   print a;
+                   print b;
+                   print z;
+                  }
+                  print z;
+                  print a;
+                  "
+                 "4\n2\n3\n0\n4")
+
+
+
 
 
   )

@@ -39,16 +39,33 @@
 
 (defn- get-env [ctx name-token]
   (let [v (get-in ctx [::values (:lexeme name-token)] ::not-found)]
-    (when (= v ::not-found)
-      (throw (errors/runtime-error name-token
-                                   (str "Undefined variable '"
-                                        (:lexeme name-token)
-                                        "'."))))
-    v))
+    (if (= v ::not-found)
+      (if-let [parent (::parent ctx)]
+        (get-env parent name-token)
+        (throw (errors/runtime-error name-token
+                                     (str "Undefined variable '"
+                                          (:lexeme name-token)
+                                          "'."))))
+      v)))
 
 (defn- set-env [ctx name-token val]
-  (get-env ctx name-token)
-  (assoc-in ctx [::values (:lexeme name-token)] val))
+  (if (nil? ctx)
+    (throw (errors/runtime-error name-token
+                                 (str "Undefined variable '"
+                                      (:lexeme name-token)
+                                      "'.")))
+    (let [v (get-in ctx [::values (:lexeme name-token)] ::not-found)]
+      (if (= v ::not-found)
+        (assoc ctx ::parent
+               (set-env (::parent ctx) name-token val))
+        (assoc-in ctx [::values (:lexeme name-token)] val)))))
+
+(defn- enclose-env [env]
+  {::parent env})
+
+(defn- denclose-env [env]
+  (::parent env))
+
 
 
 (defmulti evaluate (fn [_env {t :type}] t))
@@ -184,6 +201,15 @@
               env)
         res (when initializer (get-result env))]
     (define-env env name-token res)))
+
+
+(defmethod execute :stmt/block
+  [env {:keys [statements]}]
+  (denclose-env
+   (reduce (fn [env-acc stmt]
+             (execute env-acc stmt))
+           (enclose-env env)
+           statements)))
 
 (defn interpret [stmts envirement]
   (reduce (fn [ctx stmt]

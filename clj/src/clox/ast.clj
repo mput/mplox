@@ -9,6 +9,7 @@
    :expr/variable [:name-token]
 
    :stmt/expression [:expression]
+   :stmt/block [:statements]
    :stmt/print [:expression]
    :stmt/var [:name-token :initializer]})
 

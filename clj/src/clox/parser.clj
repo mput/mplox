@@ -140,10 +140,27 @@
                          "Expect ';' after expression.")
      (ast/new type (::ast-node expr)))))
 
+(declare declaration)
+
+(defn- block [ctx']
+  (loop [ctx ctx'
+         statements []]
+    (if (or (match-token ctx ::scanner/rbrace) (at-eof? ctx))
+      (set-ast-node (consume-with-check ctx
+                                        ::scanner/rbrace
+                                        "Expect '}' after block.")
+                    (ast/new :stmt/block
+                             statements))
+      (let [statement-ctx (declaration ctx)]
+        (recur statement-ctx (conj statements (::ast-node statement-ctx)))))))
+
 (defn- statement [ctx]
   (cond
     (match-token ctx ::scanner/print)
     (base-statement (advance ctx) :stmt/print)
+
+    (match-token ctx ::scanner/lbrace)
+    (block (advance ctx))
 
     :else
     (base-statement ctx :stmt/expression)))
@@ -193,5 +210,8 @@
   (parse (:tokens (clox.scanner/scanner "print 5; (2 + 4) == 4;")))
 
   (parse (:tokens (clox.scanner/scanner "g = f = 4;")))
+
+  (parse (:tokens (clox.scanner/scanner "{a = 5;
+{}}")))
 
   )
