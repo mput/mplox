@@ -193,6 +193,17 @@
         println)
     env))
 
+(defmethod execute :stmt/if
+  [env {:keys [condition-expr then-stmt else-stmt]}]
+  (let [env (evaluate env condition-expr)
+        cond-val (-> env get-result trusy?)
+        env (if cond-val
+              (execute env then-stmt)
+              (if else-stmt
+                (execute env else-stmt)
+                env))]
+    env))
+
 (defmethod execute
   :stmt/var
   [env {:keys [name-token initializer]}]

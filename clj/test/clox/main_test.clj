@@ -67,8 +67,17 @@
                   "
                  "4\n2\n3\n0\n4")
 
+  (run-intersept "if (true) print 5;"
+                 "5")
 
+  (run-intersept "if (false) print 5;
+                else print 6;"
+                 "5")
 
-
+  (run-intersept "var a = 1;
+                  if (false) {print 5;}
+                  else print 6;
+                  print a;"
+                 "5\n1")
 
   )

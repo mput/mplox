@@ -141,6 +141,7 @@
      (ast/new type (::ast-node expr)))))
 
 (declare declaration)
+(declare statement)
 
 (defn- block [ctx']
   (loop [ctx ctx'
@@ -154,6 +155,23 @@
       (let [statement-ctx (declaration ctx)]
         (recur statement-ctx (conj statements (::ast-node statement-ctx)))))))
 
+(defn- ifst [ctx]
+  (let [ctx (consume-with-check ctx
+                                ::scanner/lparen
+                                "Expect '(' after if.")
+        {expr ::ast-node :as ctx} (expression ctx)
+        ctx (consume-with-check ctx
+                                ::scanner/rparen
+                                "Expect ')' after if condition.")
+        {then ::ast-node :as ctx} (statement ctx)
+
+        else-ctx (when (match-token ctx ::scanner/else)
+                   (statement (advance ctx)))
+        else (::ast-node else-ctx)
+        ctx (or else-ctx ctx)]
+    (set-ast-node ctx
+                  (ast/new :stmt/if expr then else))))
+
 (defn- statement [ctx]
   (cond
     (match-token ctx ::scanner/print)
@@ -161,6 +179,9 @@
 
     (match-token ctx ::scanner/lbrace)
     (block (advance ctx))
+
+    (match-token ctx ::scanner/if)
+    (ifst (advance ctx))
 
     :else
     (base-statement ctx :stmt/expression)))
@@ -213,5 +234,8 @@
 
   (parse (:tokens (clox.scanner/scanner "{a = 5;
 {}}")))
+
+
+  (parse (:tokens (clox.scanner/scanner "if (5) true; else 8;")))
 
   )
