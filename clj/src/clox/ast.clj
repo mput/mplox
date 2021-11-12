@@ -12,6 +12,7 @@
    :stmt/expression [:expression]
    :stmt/block [:statements]
    :stmt/if [:condition-expr :then-stmt :else-stmt]
+   :stmt/while [:condition-expr :body]
    :stmt/print [:expression]
    :stmt/var [:name-token :initializer]})
 

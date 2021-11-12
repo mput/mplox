@@ -216,6 +216,15 @@
                 env))]
     env))
 
+(defmethod execute :stmt/while
+  [env' {:keys [condition-expr body]}]
+  (loop [env env']
+    (let [env (evaluate env condition-expr)
+          cond-val (-> env get-result trusy?)]
+      (if cond-val
+        (recur (execute env body))
+        env))))
+
 (defmethod execute
   :stmt/var
   [env {:keys [name-token initializer]}]

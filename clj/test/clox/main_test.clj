@@ -3,12 +3,10 @@
             [clojure.test :as t]
             [clojure.string :as str]))
 
-(defn run-intersept [src exp-res & [exec]]
-  (if exec
-    (do
-      (sut/run src))
-    (t/is (= exp-res
-         (str/trim (with-out-str (sut/run src)))))))
+(defn run-intersept [src & exp-res]
+  (t/is (= (map str exp-res)
+           (str/split (str/trim (with-out-str (sut/run src)))
+                      #"\n"))))
 
 (t/deftest main
   (run-intersept "print 5;" "5")
@@ -61,7 +59,7 @@
                   print z;
                   print a;
                   "
-                 "4\n2\n3\n0\n4")
+                 "4" "2" "3" "0" "4")
 
   (run-intersept "if (true) print 5;"
                  "5")
@@ -74,7 +72,7 @@
                   if (false) {print 5;}
                   else print 6;
                   print a;"
-                 "6\n1")
+                 "6" "1")
 
 
   (run-intersept "var a = false or 5;
@@ -92,6 +90,16 @@ print a;" "false")
 
   (run-intersept "var a = 5 and 6;
 print a;" "6")
+
+
+  (run-intersept
+   "var a = 3;
+    while (a > 1) {
+    print a;
+    a = a - 1;
+    }
+    print 10 * a;"
+   3 2 10)
 
 
   )

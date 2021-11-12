@@ -194,6 +194,19 @@
     (set-ast-node ctx
                   (ast/new :stmt/if expr then else))))
 
+(defn- whilest [ctx]
+  (let [ctx (consume-with-check ctx
+                                ::scanner/lparen
+                                "Expect '(' after while.")
+        {expr ::ast-node :as ctx} (expression ctx)
+        ctx (consume-with-check ctx
+                                ::scanner/rparen
+                                "Expect ')' after while condition.")
+        {body ::ast-node :as ctx} (statement ctx)
+        ]
+    (set-ast-node ctx
+                  (ast/new :stmt/while expr body))))
+
 (defn- statement [ctx]
   (cond
     (match-token ctx ::scanner/print)
@@ -204,6 +217,9 @@
 
     (match-token ctx ::scanner/if)
     (ifst (advance ctx))
+
+    (match-token ctx ::scanner/while)
+    (whilest (advance ctx))
 
     :else
     (base-statement ctx :stmt/expression)))
@@ -257,7 +273,7 @@
 {}}")))
 
 
-  (parse (:tokens (clox.scanner/scanner "if (5) true; else 8;")))
+  (parse (:tokens (clox.scanner/scanner "while (5) true;")))
 
   (parse (:tokens (clox.scanner/scanner "5 or 6 and 8;")))
 
