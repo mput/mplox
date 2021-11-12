@@ -101,5 +101,23 @@ print a;" "6")
     print 10 * a;"
    3 2 10)
 
+  (run-intersept
+   "for (var a = 3 ; a>1; a = a - 1 ) print a;
+    print a;"
+   3 2 "Undefined variable 'a'. [line 2]")
+
+
+  (run-intersept
+   "
+var a = 0;
+var temp;
+
+for (var b = 1; a < 50; b = temp + b) {
+  print a;
+  temp = a;
+  a = b;
+}
+"
+   "0" "1" "1" "2" "3" "5" "8" "13" "21" "34")
 
   )

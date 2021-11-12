@@ -163,6 +163,7 @@
      (ast/new type (::ast-node expr)))))
 
 (declare declaration)
+(declare var-declaration)
 (declare statement)
 
 (defn- block [ctx']
@@ -177,7 +178,7 @@
       (let [statement-ctx (declaration ctx)]
         (recur statement-ctx (conj statements (::ast-node statement-ctx)))))))
 
-(defn- ifst [ctx]
+(defn- if-st [ctx]
   (let [ctx (consume-with-check ctx
                                 ::scanner/lparen
                                 "Expect '(' after if.")
@@ -194,7 +195,7 @@
     (set-ast-node ctx
                   (ast/new :stmt/if expr then else))))
 
-(defn- whilest [ctx]
+(defn- while-st [ctx]
   (let [ctx (consume-with-check ctx
                                 ::scanner/lparen
                                 "Expect '(' after while.")
@@ -202,10 +203,66 @@
         ctx (consume-with-check ctx
                                 ::scanner/rparen
                                 "Expect ')' after while condition.")
-        {body ::ast-node :as ctx} (statement ctx)
-        ]
+        {body ::ast-node :as ctx} (statement ctx)]
     (set-ast-node ctx
                   (ast/new :stmt/while expr body))))
+
+(defn- for-ast-b [initializer condition increment body]
+  (let [body (if increment
+               (ast/new :stmt/block
+                        [body
+                         (ast/new :stmt/expression increment)])
+               body)
+
+        body (ast/new :stmt/while
+                      (or condition
+                          (ast/new :expr/literal true))
+                      body)
+
+        body (if initializer
+               (ast/new :stmt/block
+                        [initializer
+                         body])
+               body)]
+    body))
+
+(defn- for-st [ctx]
+  (let [ctx (consume-with-check ctx
+                                ::scanner/lparen
+                                "Expect '(' after 'for'.")
+        {initializer ::ast-node :as ctx}
+        (cond
+          (match-token ctx ::scanner/semicolon)
+          (assoc (advance ctx) ::ast-node nil)
+
+          (match-token ctx ::scanner/var)
+          (var-declaration (advance ctx))
+
+          :else
+          (base-statement ctx :stmt/expression))
+
+        {condition ::ast-node :as ctx}
+        (if (match-token ctx ::scanner/semicolon)
+          (assoc ctx ::ast-node nil)
+          (expression ctx))
+
+        ctx (consume-with-check ctx
+                                ::scanner/semicolon
+                                "Expect ';' after loop condition.")
+
+        {increment ::ast-node :as ctx}
+        (if (match-token ctx ::scanner/rparen)
+          (assoc ctx ::ast-node nil)
+          (expression ctx))
+
+        ctx (consume-with-check ctx
+                                ::scanner/rparen
+                                "Expect ')' after for clause.")
+
+        {body ::ast-node :as ctx} (statement ctx)
+
+        for-ast (for-ast-b initializer condition increment body)]
+    (set-ast-node ctx for-ast)))
 
 (defn- statement [ctx]
   (cond
@@ -216,10 +273,13 @@
     (block (advance ctx))
 
     (match-token ctx ::scanner/if)
-    (ifst (advance ctx))
+    (if-st (advance ctx))
 
     (match-token ctx ::scanner/while)
-    (whilest (advance ctx))
+    (while-st (advance ctx))
+
+    (match-token ctx ::scanner/for)
+    (for-st (advance ctx))
 
     :else
     (base-statement ctx :stmt/expression)))
@@ -275,7 +335,6 @@
 
   (parse (:tokens (clox.scanner/scanner "while (5) true;")))
 
-  (parse (:tokens (clox.scanner/scanner "5 or 6 and 8;")))
 
 
   )
