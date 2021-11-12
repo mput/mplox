@@ -22,7 +22,7 @@
                (errors/report err))
              ::parser-error)
            (try (interpreter/interpret statements environment)
-                (catch Throwable e
+                (catch clojure.lang.ExceptionInfo e
                   (errors/report  (ex-data e))
                   ::runtime-error))))))))
 

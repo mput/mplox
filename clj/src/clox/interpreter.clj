@@ -70,6 +70,18 @@
 
 (defmulti evaluate (fn [_env {t :type}] t))
 
+(defmethod evaluate :expr/logical
+  [env {:keys [left operator right]}]
+  (let [env (evaluate env left)
+        l-res (get-result env)]
+    (if (trusy? l-res)
+      (if (= (:type operator) ::scanner/or)
+        env
+        (evaluate env right))
+      (if (= (:type operator) ::scanner/or)
+        (evaluate env right)
+        env))))
+
 (defmethod evaluate :expr/binary
   [env {:keys [left operator right]}]
   (let [env (evaluate env left)
@@ -167,7 +179,7 @@
 
 (defn strinfigy [val]
   (cond
-    (nil? val) "null"
+    (nil? val) "nil"
 
     (double? val)
     (if (str/ends-with? (str val) ".0")

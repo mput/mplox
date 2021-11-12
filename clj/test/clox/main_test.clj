@@ -67,13 +67,31 @@
                  "5")
 
   (run-intersept "if (false) print 5;
-                else print 6;"
-                 "5")
+                  else print 6;"
+                 "6")
 
   (run-intersept "var a = 1;
                   if (false) {print 5;}
                   else print 6;
                   print a;"
-                 "5\n1")
+                 "6\n1")
+
+
+  (run-intersept "var a = false or 5;
+print a;" "5")
+
+  (run-intersept "var a = 5 or false;
+print a;" "5")
+
+
+  (run-intersept "var a = false or nil;
+print a;" "nil")
+
+  (run-intersept "var a = 5 and false;
+print a;" "false")
+
+  (run-intersept "var a = 5 and 6;
+print a;" "6")
+
 
   )

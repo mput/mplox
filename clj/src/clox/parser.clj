@@ -60,6 +60,18 @@
         (recur (set-ast-node right expression)))
       left)))
 
+(defn- logic-creator [ctx base & operators]
+  (loop [left (base ctx)]
+    (if (apply match-token left operators)
+      (let [operator (get-current-token left)
+            right (base (advance left))
+            expression (ast/new :expr/logical
+                                (::ast-node left)
+                                operator
+                                (::ast-node right))]
+        (recur (set-ast-node right expression)))
+      left)))
+
 (declare expression)
 
 (defn- primary [ctx]
@@ -68,7 +80,7 @@
     (advance (set-ast-node ctx (ast/new :expr/literal
                                      (:literal (get-current-token ctx)))))
 
-    (match-token ctx ::scanner/true ::scanner/false ::scanner/nil)
+    (match-token ctx ::scanner/true)
     (advance (set-ast-node ctx (ast/new :expr/literal true)))
 
     (match-token ctx ::scanner/false)
@@ -104,6 +116,7 @@
 
 (defn- factor [ctx] (binary-creator ctx unary ::scanner/slash ::scanner/star))
 (defn- term [ctx] (binary-creator ctx factor ::scanner/plus ::scanner/minus))
+
 (defn- comprison [ctx]
   (binary-creator ctx term
                   ::scanner/greater
@@ -118,8 +131,16 @@
 (defn- var-expression? [ast-node]
   (= :expr/variable (:type ast-node)))
 
+(defn- logical-and [ctx]
+  (logic-creator ctx equality
+                  ::scanner/and))
+
+(defn- logical-or [ctx]
+  (logic-creator ctx logical-and
+                  ::scanner/or))
+
 (defn- assignment [ctx]
-  (let [expr (equality ctx)]
+  (let [expr (logical-or ctx)]
     (if (match-token expr ::scanner/equal)
       (let [value (assignment (advance expr))]
         (if (var-expression? (::ast-node expr))
@@ -223,7 +244,7 @@
 (comment
   (parse (:tokens (clox.scanner/scanner " (2 + 3) * 4 == 4")))
 
-  (parse (:tokens (clox.scanner/scanner "help;")))
+  (parse (:tokens (clox.scanner/scanner "false;")))
 
   (parse (:tokens (clox.scanner/scanner "var help = 4;")))
 
@@ -237,5 +258,8 @@
 
 
   (parse (:tokens (clox.scanner/scanner "if (5) true; else 8;")))
+
+  (parse (:tokens (clox.scanner/scanner "5 or 6 and 8;")))
+
 
   )

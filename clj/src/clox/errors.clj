@@ -25,3 +25,7 @@
 (defmethod report :parser
   [{{:keys [line lexeme]} :token message :message}]
   (report-1 line lexeme message))
+
+(defmethod report :default
+  [data]
+  (println "Default error reporter: " data))
