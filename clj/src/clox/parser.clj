@@ -105,6 +105,32 @@
 
     :else (throw-parser-error ctx "Expect expression.")))
 
+(defn- arguments [ctx]
+  (loop [ctx ctx
+         args []]
+    (if (match-token ctx ::scanner/rparen)
+      (set-ast-node ctx args)
+      (let [{arg ::ast-node :as ctx} (expression ctx)
+            args (conj args arg)]
+        (if (match-token ctx ::scanner/comma)
+          (recur (advance ctx) args)
+          (set-ast-node ctx args))))))
+
+(defn- call [ctx]
+  (let [expr (primary ctx)]
+    (loop [{calle-expr ::ast-node :as ctx} expr]
+      (if (match-token ctx ::scanner/lparen)
+        (let [lprn (get-current-token ctx)
+              {arguments ::ast-node :as ctx} (arguments (advance ctx))]
+          (recur (set-ast-node (consume-with-check ctx
+                                                   ::scanner/rparen
+                                                   "Expect ')' after function arguments")
+                               (ast/new :expr/call
+                                        calle-expr
+                                        lprn
+                                        arguments))))
+        ctx))))
+
 (defn- unary [ctx]
   (if (match-token ctx ::scanner/bang ::scanner/minus)
     (let [operator (get-current-token ctx)
@@ -112,7 +138,7 @@
       (set-ast-node right (ast/new :expr/unary
                                 operator
                                 (::ast-node right))))
-    (primary ctx)))
+    (call ctx)))
 
 (defn- factor [ctx] (binary-creator ctx unary ::scanner/slash ::scanner/star))
 (defn- term [ctx] (binary-creator ctx factor ::scanner/plus ::scanner/minus))
@@ -318,23 +344,8 @@
       (ex-data e))))
 
 (comment
-  (parse (:tokens (clox.scanner/scanner " (2 + 3) * 4 == 4")))
+  (parse (:tokens (clox.scanner/scanner "help()();")))
 
-  (parse (:tokens (clox.scanner/scanner "false;")))
-
-  (parse (:tokens (clox.scanner/scanner "var help = 4;")))
-
-
-  (parse (:tokens (clox.scanner/scanner "print 5; (2 + 4) == 4;")))
-
-  (parse (:tokens (clox.scanner/scanner "g = f = 4;")))
-
-  (parse (:tokens (clox.scanner/scanner "{a = 5;
-{}}")))
-
-
-  (parse (:tokens (clox.scanner/scanner "while (5) true;")))
-
-
+  (parse (:tokens (clox.scanner/scanner "help(1, 2)(777, 944);")))
 
   )
