@@ -1,7 +1,9 @@
 (ns clox.interpreter
   (:require [clox.scanner :as scanner]
             [clojure.string :as str]
-            [clox.errors :as errors]))
+            [clox.errors :as errors]
+            [clox.callable :as callable])
+  (:import [clox.callable LoxCallable]))
 
 (defn- trusy? [val]
   (cond
@@ -34,8 +36,8 @@
   (::result ctx))
 
 
-(defn- define-env [ctx name-token val]
-  (assoc-in ctx [::values (:lexeme name-token)] val))
+(defn- define-env [ctx ename val]
+  (assoc-in ctx [::values ename] val))
 
 (defn- get-env [ctx name-token]
   (let [v (get-in ctx [::values (:lexeme name-token)] ::not-found)]
@@ -177,6 +179,26 @@
         env (set-env env name-token val-res)]
     (set-result env val-res)))
 
+(defmethod evaluate :expr/call
+  [env {:keys [calle-expr paren-token arguments-exprs]}]
+  (let [callee-ctx (evaluate env calle-expr)
+        calle (get-result callee-ctx)
+        {args :args :as env} (reduce (fn [env' arg]
+                                       (let [env'' (evaluate env' arg)]
+                                         (update env'' :args conj (get-result env''))))
+                                     (assoc callee-ctx :args [])
+                                     arguments-exprs)]
+    (when-not (instance? LoxCallable calle)
+      (throw (errors/runtime-error paren-token
+                                   "Can only call functions and classes.")))
+    (when (not= (callable/arity calle) (count args))
+      (throw (errors/runtime-error paren-token
+                                   (str "Expected "
+                                        (callable/arity calle)  " arguments but got "
+                                        (count args)  "."))))
+
+    (callable/call calle env args)))
+
 (defn strinfigy [val]
   (cond
     (nil? val) "nil"
@@ -232,8 +254,7 @@
               (evaluate env initializer)
               env)
         res (when initializer (get-result env))]
-    (define-env env name-token res)))
-
+    (define-env env (:lexeme name-token) res)))
 
 (defmethod execute :stmt/block
   [env {:keys [statements]}]
@@ -243,12 +264,23 @@
            (enclose-env env)
            statements)))
 
+(def global-envirement
+  (-> {}
+      (define-env "clock"
+        (reify callable/LoxCallable
+          (call [this env _args]
+            (set-result env
+                        (double (/ (System/currentTimeMillis) 1000.0))))
+
+          (arity [this] 0)
+          (toString [this] "<native fn>")))))
+
+
 (defn interpret [stmts envirement]
   (reduce (fn [ctx stmt]
             (execute ctx stmt))
-          envirement
+          (or envirement global-envirement)
           stmts))
-
 
 
 (comment

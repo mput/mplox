@@ -7,7 +7,7 @@
    [clojure.pprint]))
 
 (defn run
-  ([source] (run source {}))
+  ([source] (run source nil))
   ([source environment]
    (let [{:keys [tokens errors]} (scanner/scanner source)]
      (if (seq errors)
@@ -33,7 +33,7 @@
   )
 
 (defn run-prompt []
-  (loop [environment {}]
+  (loop [environment nil]
     (print "> ") (flush)
     (let [new-environment
           (loop [source ""]
