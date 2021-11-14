@@ -120,4 +120,30 @@ for (var b = 1; a < 50; b = temp + b) {
 "
    "0" "1" "1" "2" "3" "5" "8" "13" "21" "34")
 
+  (run-intersept "
+fun sayHi(first, last) {
+  print \"Hi, \" + first + \" \" + last + \"!\";
+}
+sayHi(\"Dear\", \"Reader\");
+"
+                 "Hi, Dear Reader!")
+
+  (run-intersept "
+fun toTen(a) {
+return a * 10;
+}
+print  toTen(42);
+"
+                 420)
+
+
+  (run-intersept "
+fun toTen(a) {
+return;
+}
+print  toTen(42);
+"
+                 "nil")
+
+
   )

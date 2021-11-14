@@ -70,7 +70,6 @@
   (::parent env))
 
 
-
 (defmulti evaluate (fn [_env {t :type}] t))
 (defmulti execute (fn [_env {t :type}] t))
 
@@ -80,9 +79,18 @@
     (let [params (get-in this [:declaration :params] )
           fn-env (->> (map vector params arguments)
                       (reduce (fn [env' [param arg]]
-                                (define-env env' (:lexeme param) arg)) env))]
-      (execute fn-env (get-in this [:declaration :body]))
-      env))
+                                (define-env env' (:lexeme param) arg)) env))
+
+          result (try (execute fn-env (get-in this [:declaration :body]))
+                      (set-result env nil)
+                      (catch clojure.lang.ExceptionInfo e
+                        (when-not (= (:type (ex-data e))
+                                     :fun-return)
+                          (throw e))
+                        (set-result env (get-result (:env (ex-data e))))))]
+
+      result))
+
   (arity [this] (count (get-in this [:declaration :params] )))
   (toString [this] (str "<fn "  (get-in this [:declaration :name-token :lexeme]) ">")))
 
@@ -272,6 +280,14 @@
 (defmethod execute :stmt/fun
   [env {:keys [name-token params body] :as declaration}]
   (define-env env (:lexeme name-token) (->Function declaration)))
+
+(defmethod execute :stmt/return
+  [env {:keys [keyword-token value-expr]}]
+  (let [res (if value-expr
+              (evaluate env value-expr)
+              (set-result env nil))]
+    (throw (ex-info "FUN RETURN" {:type :fun-return
+                                  :env res}))))
 
 (defmethod execute :stmt/block
   [env {:keys [statements]}]

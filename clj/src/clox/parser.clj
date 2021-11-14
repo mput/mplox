@@ -290,10 +290,25 @@
         for-ast (for-ast-b initializer condition increment body)]
     (set-ast-node ctx for-ast)))
 
+(defn- return [ctx]
+  (let [keyword (get-current-token ctx)
+        ctx (advance ctx)
+        {value ::ast-node :as ctx}
+        (if (match-token ctx ::scanner/semicolon)
+          (assoc ctx ::ast-node nil)
+          (expression ctx))]
+    (set-ast-node (consume-with-check ctx
+                                      ::scanner/semicolon
+                                      "Expect ';' after loop condition.")
+                  (ast/new :stmt/return keyword value))))
+
 (defn- statement [ctx]
   (cond
     (match-token ctx ::scanner/print)
     (base-statement (advance ctx) :stmt/print)
+
+    (match-token ctx ::scanner/return)
+    (return ctx)
 
     (match-token ctx ::scanner/lbrace)
     (block (advance ctx))
@@ -385,7 +400,7 @@
       (ex-data e))))
 
 (comment
-  (parse (:tokens (clox.scanner/scanner "fun tmp (a, b) {print 5; print b;}")))
+  (parse (:tokens (clox.scanner/scanner "return 5;")))
 
   (parse (:tokens (clox.scanner/scanner "help(1, 2)(777, 944);")))
 
