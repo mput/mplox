@@ -5,6 +5,8 @@
             [clox.callable :as callable])
   (:import [clox.callable LoxCallable]))
 
+
+
 (defn- trusy? [val]
   (cond
     (nil? val) false
@@ -34,7 +36,6 @@
 
 (defn- get-result [ctx]
   (::result ctx))
-
 
 (defn- define-env [ctx ename val]
   (assoc-in ctx [::values ename] val))
@@ -71,6 +72,19 @@
 
 
 (defmulti evaluate (fn [_env {t :type}] t))
+(defmulti execute (fn [_env {t :type}] t))
+
+(defrecord Function [declaration]
+  LoxCallable
+  (call [this env arguments]
+    (let [params (get-in this [:declaration :params] )
+          fn-env (->> (map vector params arguments)
+                      (reduce (fn [env' [param arg]]
+                                (define-env env' (:lexeme param) arg)) env))]
+      (execute fn-env (get-in this [:declaration :body]))
+      env))
+  (arity [this] (count (get-in this [:declaration :params] )))
+  (toString [this] (str "<fn "  (get-in this [:declaration :name-token :lexeme]) ">")))
 
 (defmethod evaluate :expr/logical
   [env {:keys [left operator right]}]
@@ -210,7 +224,6 @@
 
     :else (str val)))
 
-(defmulti execute (fn [_env {t :type}] t))
 
 (defmethod execute
   :stmt/expression
@@ -255,6 +268,10 @@
               env)
         res (when initializer (get-result env))]
     (define-env env (:lexeme name-token) res)))
+
+(defmethod execute :stmt/fun
+  [env {:keys [name-token params body] :as declaration}]
+  (define-env env (:lexeme name-token) (->Function declaration)))
 
 (defmethod execute :stmt/block
   [env {:keys [statements]}]
