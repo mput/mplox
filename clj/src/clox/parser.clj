@@ -325,10 +325,51 @@
               (get-current-token ctx)
               (::ast-node expression-ctx)))))
 
+(defn- fun-declaration [ctx kind]
+  (let [name (get-current-token ctx)
+        ctx (consume-with-check ctx
+                                ::scanner/identifier
+                                (str "Expect " kind "name."))
+
+        ctx (consume-with-check ctx
+                                ::scanner/lparen
+                                (str "Expect '(' after " kind "name."))
+        {params ::ast-node :as ctx}
+        (if (match-token ctx ::scanner/rparen)
+          (set-ast-node ctx [])
+          (loop [ctx ctx
+                 params []]
+            (let [params (conj params (get-current-token ctx))
+                  ctx (consume-with-check ctx
+                                          ::scanner/identifier
+                                          "Expect parameter name.")]
+              (if (match-token ctx ::scanner/comma)
+                (recur (advance ctx) params)
+                (set-ast-node ctx params)))))
+
+        ctx (consume-with-check ctx
+                                ::scanner/rparen
+                                (str "Expect ')' after parameters"))
+
+        ctx (consume-with-check ctx
+                                ::scanner/lbrace
+                                (str "Expect '{' before " kind "name."))
+
+        {body ::ast-node :as ctx}
+        (block ctx)]
+    (set-ast-node ctx
+                  (ast/new :stmt/fun
+                           name
+                           params
+                           body))))
+
 (defn- declaration [ctx]
   (cond
     (match-token ctx ::scanner/var)
     (var-declaration (advance ctx))
+
+    (match-token ctx ::scanner/fun)
+    (fun-declaration (advance ctx) "function")
 
     :else (statement ctx)))
 
@@ -344,7 +385,7 @@
       (ex-data e))))
 
 (comment
-  (parse (:tokens (clox.scanner/scanner "help()();")))
+  (parse (:tokens (clox.scanner/scanner "fun tmp (a, b) {print 5; print b;}")))
 
   (parse (:tokens (clox.scanner/scanner "help(1, 2)(777, 944);")))
 

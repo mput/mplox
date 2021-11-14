@@ -15,7 +15,8 @@
    :stmt/if [:condition-expr :then-stmt :else-stmt]
    :stmt/while [:condition-expr :body]
    :stmt/print [:expression]
-   :stmt/var [:name-token :initializer]})
+   :stmt/var [:name-token :initializer]
+   :stmt/fun [:name-token :params :body]})
 
 (defn new
   [type & operands]
