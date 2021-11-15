@@ -139,7 +139,6 @@
 
       \/ (if (match? ctx \/ )
            (loop [ctx' (advance ctx)]
-             (prn ctx')
              (let [char (get-current ctx')]
                (case char
                  (\newline nil) ctx'

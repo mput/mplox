@@ -147,4 +147,26 @@ print  toTen(42);
                  "nil")
 
 
+  (run-intersept "
+fun makeCounter (init) {
+var cnt = init;
+fun count() {
+print init = init + 1;
+}
+return count;
+}
+
+var cnt1 = makeCounter(10);
+var cnt2 = makeCounter(42);
+
+cnt1();
+cnt2();
+cnt1();
+cnt2();
+"
+                 11 43 12 44
+                 )
+
+
+
   )

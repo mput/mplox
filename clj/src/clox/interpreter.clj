@@ -44,22 +44,25 @@
    (atom (cond-> {}
            parent (assoc ::parent parent)))))
 
-(defn- define-env [{env ::env :as ctx} ename val]
-  (swap! env assoc-in [::values ename] val)
+(defn- define-env! [env ename val]
+  (swap! env assoc-in [::values ename] val))
+
+(defn define-local-env! [ctx ename val]
+  (define-env! (::local ctx) ename val)
   ctx)
 
-(defn- get-env [{env ::env} name-token]
+(defn- get-env [env name-token]
   (let [v (get-in @env [::values (:lexeme name-token)] ::not-found)]
     (if (= v ::not-found)
       (if-let [parent (::parent @env)]
-        (get-env {::env parent} name-token)
+        (get-env parent name-token)
         (throw (errors/runtime-error name-token
                                      (str "Undefined variable '"
                                           (:lexeme name-token)
                                           "'."))))
       v)))
 
-(defn- set-env [{env ::env :as ctx} name-token val]
+(defn- set-env! [env name-token val]
   (if (nil? env)
     (throw (errors/runtime-error name-token
                                  (str "Undefined variable '"
@@ -67,28 +70,33 @@
                                       "'.")))
     (let [v (get-in @env [::values (:lexeme name-token)] ::not-found)]
       (if (= v ::not-found)
-        (set-env {::env (::parent @env)} name-token val)
-        (swap! env assoc-in [::values (:lexeme name-token)] val))))
+        (set-env! (::parent @env) name-token val)
+        (swap! env assoc-in [::values (:lexeme name-token)] val)))))
+
+(defn- set-env-local! [{env ::local :as ctx} name-token val]
+  (set-env! env name-token val)
   ctx)
 
-(defn- enclose-env [{env ::env :as ctx}]
-  (assoc ctx ::env (create-env env)))
+(defn- enclose-env [{env ::local :as ctx}]
+  (assoc ctx ::local (create-env env)))
 
-(defn- denclose-env [{env ::env :as ctx}]
-  (assoc ctx ::env (::parent @env)))
+(defn- denclose-env [{env ::local :as ctx}]
+  (assoc ctx ::local (::parent @env)))
 
 (create-env)
 
 (defn global-envirement []
-  (-> {::env (create-env)}
-      (define-env "clock"
-        (reify callable/LoxCallable
-          (call [this env _args]
-            (set-result env
-                        (double (/ (System/currentTimeMillis) 1000.0))))
+  (let [env (create-env)]
+    (define-env! env "clock"
+      (reify callable/LoxCallable
+        (call [this env _args]
+          (set-result env
+                      (double (/ (System/currentTimeMillis) 1000.0))))
 
-          (arity [this] 0)
-          (toString [this] "<native fn>")))))
+        (arity [this] 0)
+        (toString [this] "<native fn>")))
+    {::local env
+     ::global env}))
 
 
 (defmulti evaluate (fn [_env {t :type}] t))
@@ -100,8 +108,8 @@
     (let [params (get-in this [:declaration :params] )
           fn-env (->> (map vector params arguments)
                       (reduce (fn [env' [param arg]]
-                                (define-env env' (:lexeme param) arg))
-                              (get-in this [:env])))
+                                (define-local-env! env' (:lexeme param) arg))
+                              (enclose-env (get-in this [:env]))))
 
           result (try (execute fn-env (get-in this [:declaration :body]))
                       (set-result call-env nil)
@@ -213,14 +221,14 @@
 
 
 (defmethod evaluate :expr/variable
-  [env {:keys [name-token]}]
-  (set-result env (get-env env name-token)))
+  [ctx {:keys [name-token]}]
+  (set-result ctx (get-env (::local ctx) name-token)))
 
 (defmethod evaluate :expr/assign
   [env {:keys [name-token value]}]
   (let [env (evaluate env value)
         val-res (get-result env)
-        env (set-env env name-token val-res)]
+        env (set-env-local! env name-token val-res)]
     (set-result env val-res)))
 
 (defmethod evaluate :expr/call
@@ -297,11 +305,11 @@
               (evaluate env initializer)
               env)
         res (when initializer (get-result env))]
-    (define-env env (:lexeme name-token) res)))
+    (define-local-env! env (:lexeme name-token) res)))
 
 (defmethod execute :stmt/fun
   [env {:keys [name-token params body] :as declaration}]
-  (define-env env (:lexeme name-token) (->Function declaration env)))
+  (define-local-env! env (:lexeme name-token) (->Function declaration env)))
 
 (defmethod execute :stmt/return
   [env {:keys [keyword-token value-expr]}]
