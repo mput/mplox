@@ -21,6 +21,7 @@
                   print tvar * (-bvar);"
                  "-600")
 
+
   (run-intersept "print 5 + 5 * 2;" "15")
 
   (run-intersept "print (5 + 5) * 2;" "20")

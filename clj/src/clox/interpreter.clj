@@ -37,57 +37,79 @@
 (defn- get-result [ctx]
   (::result ctx))
 
-(defn- define-env [ctx ename val]
-  (assoc-in ctx [::values ename] val))
 
-(defn- get-env [ctx name-token]
-  (let [v (get-in ctx [::values (:lexeme name-token)] ::not-found)]
+(defn- create-env
+  ([] (create-env nil))
+  ([parent]
+   (atom (cond-> {}
+           parent (assoc ::parent parent)))))
+
+(defn- define-env [{env ::env :as ctx} ename val]
+  (swap! env assoc-in [::values ename] val)
+  ctx)
+
+(defn- get-env [{env ::env} name-token]
+  (let [v (get-in @env [::values (:lexeme name-token)] ::not-found)]
     (if (= v ::not-found)
-      (if-let [parent (::parent ctx)]
-        (get-env parent name-token)
+      (if-let [parent (::parent @env)]
+        (get-env {::env parent} name-token)
         (throw (errors/runtime-error name-token
                                      (str "Undefined variable '"
                                           (:lexeme name-token)
                                           "'."))))
       v)))
 
-(defn- set-env [ctx name-token val]
-  (if (nil? ctx)
+(defn- set-env [{env ::env :as ctx} name-token val]
+  (if (nil? env)
     (throw (errors/runtime-error name-token
                                  (str "Undefined variable '"
                                       (:lexeme name-token)
                                       "'.")))
-    (let [v (get-in ctx [::values (:lexeme name-token)] ::not-found)]
+    (let [v (get-in @env [::values (:lexeme name-token)] ::not-found)]
       (if (= v ::not-found)
-        (assoc ctx ::parent
-               (set-env (::parent ctx) name-token val))
-        (assoc-in ctx [::values (:lexeme name-token)] val)))))
+        (set-env {::env (::parent @env)} name-token val)
+        (swap! env assoc-in [::values (:lexeme name-token)] val))))
+  ctx)
 
-(defn- enclose-env [env]
-  {::parent env})
+(defn- enclose-env [{env ::env :as ctx}]
+  (assoc ctx ::env (create-env env)))
 
-(defn- denclose-env [env]
-  (::parent env))
+(defn- denclose-env [{env ::env :as ctx}]
+  (assoc ctx ::env (::parent @env)))
+
+(create-env)
+
+(defn global-envirement []
+  (-> {::env (create-env)}
+      (define-env "clock"
+        (reify callable/LoxCallable
+          (call [this env _args]
+            (set-result env
+                        (double (/ (System/currentTimeMillis) 1000.0))))
+
+          (arity [this] 0)
+          (toString [this] "<native fn>")))))
 
 
 (defmulti evaluate (fn [_env {t :type}] t))
 (defmulti execute (fn [_env {t :type}] t))
 
-(defrecord Function [declaration]
+(defrecord Function [declaration env]
   LoxCallable
-  (call [this env arguments]
+  (call [this call-env arguments]
     (let [params (get-in this [:declaration :params] )
           fn-env (->> (map vector params arguments)
                       (reduce (fn [env' [param arg]]
-                                (define-env env' (:lexeme param) arg)) env))
+                                (define-env env' (:lexeme param) arg))
+                              (get-in this [:env])))
 
           result (try (execute fn-env (get-in this [:declaration :body]))
-                      (set-result env nil)
+                      (set-result call-env nil)
                       (catch clojure.lang.ExceptionInfo e
                         (when-not (= (:type (ex-data e))
                                      :fun-return)
                           (throw e))
-                        (set-result env (get-result (:env (ex-data e))))))]
+                        (set-result call-env (get-result (:env (ex-data e))))))]
 
       result))
 
@@ -279,7 +301,7 @@
 
 (defmethod execute :stmt/fun
   [env {:keys [name-token params body] :as declaration}]
-  (define-env env (:lexeme name-token) (->Function declaration)))
+  (define-env env (:lexeme name-token) (->Function declaration env)))
 
 (defmethod execute :stmt/return
   [env {:keys [keyword-token value-expr]}]
@@ -297,22 +319,13 @@
            (enclose-env env)
            statements)))
 
-(def global-envirement
-  (-> {}
-      (define-env "clock"
-        (reify callable/LoxCallable
-          (call [this env _args]
-            (set-result env
-                        (double (/ (System/currentTimeMillis) 1000.0))))
 
-          (arity [this] 0)
-          (toString [this] "<native fn>")))))
 
 
 (defn interpret [stmts envirement]
   (reduce (fn [ctx stmt]
             (execute ctx stmt))
-          (or envirement global-envirement)
+          (or envirement (global-envirement))
           stmts))
 
 
