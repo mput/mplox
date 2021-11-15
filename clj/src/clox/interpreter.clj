@@ -2,10 +2,9 @@
   (:require [clox.scanner :as scanner]
             [clojure.string :as str]
             [clox.errors :as errors]
-            [clox.callable :as callable])
+            [clox.callable :as callable]
+            [clox.environment :as env])
   (:import [clox.callable LoxCallable]))
-
-
 
 (defn- trusy? [val]
   (cond
@@ -37,57 +36,17 @@
 (defn- get-result [ctx]
   (::result ctx))
 
-
-(defn- create-env
-  ([] (create-env nil))
-  ([parent]
-   (atom (cond-> {}
-           parent (assoc ::parent parent)))))
-
-(defn- define-env! [env ename val]
-  (swap! env assoc-in [::values ename] val))
-
 (defn define-local-env! [ctx ename val]
-  (define-env! (::local ctx) ename val)
+  (env/define-env! (::env/local ctx) ename val)
   ctx)
 
-(defn- get-env [env name-token]
-  (let [v (get-in @env [::values (:lexeme name-token)] ::not-found)]
-    (if (= v ::not-found)
-      (if-let [parent (::parent @env)]
-        (get-env parent name-token)
-        (throw (errors/runtime-error name-token
-                                     (str "Undefined variable '"
-                                          (:lexeme name-token)
-                                          "'."))))
-      v)))
-
-(defn- set-env! [env name-token val]
-  (if (nil? env)
-    (throw (errors/runtime-error name-token
-                                 (str "Undefined variable '"
-                                      (:lexeme name-token)
-                                      "'.")))
-    (let [v (get-in @env [::values (:lexeme name-token)] ::not-found)]
-      (if (= v ::not-found)
-        (set-env! (::parent @env) name-token val)
-        (swap! env assoc-in [::values (:lexeme name-token)] val)))))
-
-(defn- set-env-local! [{env ::local :as ctx} name-token val]
-  (set-env! env name-token val)
+(defn- set-env-local! [{env ::env/local :as ctx} name-token val]
+  (env/set-env! env name-token val)
   ctx)
-
-(defn- enclose-env [{env ::local :as ctx}]
-  (assoc ctx ::local (create-env env)))
-
-(defn- denclose-env [{env ::local :as ctx}]
-  (assoc ctx ::local (::parent @env)))
-
-(create-env)
 
 (defn global-envirement []
-  (let [env (create-env)]
-    (define-env! env "clock"
+  (let [env (env/create-env)]
+    (env/define-env! env "clock"
       (reify callable/LoxCallable
         (call [this env _args]
           (set-result env
@@ -95,8 +54,8 @@
 
         (arity [this] 0)
         (toString [this] "<native fn>")))
-    {::local env
-     ::global env}))
+    {::env/local env
+     ::env/global env}))
 
 
 (defmulti evaluate (fn [_env {t :type}] t))
@@ -109,7 +68,7 @@
           fn-env (->> (map vector params arguments)
                       (reduce (fn [env' [param arg]]
                                 (define-local-env! env' (:lexeme param) arg))
-                              (enclose-env (get-in this [:env]))))
+                              (env/enclose-env (get-in this [:env]))))
 
           result (try (execute fn-env (get-in this [:declaration :body]))
                       (set-result call-env nil)
@@ -222,7 +181,7 @@
 
 (defmethod evaluate :expr/variable
   [ctx {:keys [name-token]}]
-  (set-result ctx (get-env (::local ctx) name-token)))
+  (set-result ctx (env/get-env (::env/local ctx) name-token)))
 
 (defmethod evaluate :expr/assign
   [env {:keys [name-token value]}]
@@ -321,10 +280,10 @@
 
 (defmethod execute :stmt/block
   [env {:keys [statements]}]
-  (denclose-env
+  (env/denclose-env
    (reduce (fn [env-acc stmt]
              (execute env-acc stmt))
-           (enclose-env env)
+           (env/enclose-env env)
            statements)))
 
 
