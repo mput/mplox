@@ -4,6 +4,7 @@
  :aliases {:run {:main-opts ["-m" "clox.main"]}
            :nrepl {:extra-deps {refactor-nrepl/refactor-nrepl {:mvn/version "3.0.0"}
                                 cider/cider-nrepl {:mvn/version "0.27.2"}}
+                   :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
                    :main-opts ["-m" "nrepl.cmdline"
                                "--middleware"
                                "[refactor-nrepl.middleware/wrap-refactor,cider.nrepl/cider-middleware]"

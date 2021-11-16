@@ -167,6 +167,84 @@ cnt2();
                  11 43 12 44
                  )
 
+  (run-intersept
+   "
+var tmp = \"out\";
+{
+fun in() {
+print tmp;
+}
+in();
+var tmp = \"in\";
+in();
+}
+"
+   "out" "out"
+
+   )
+
+  (run-intersept
+   "
+{
+ var tmp = \"out\";
+ {
+  fun in() {
+  print tmp;
+  }
+  in();
+  var tmp = \"in\";
+  in();
+ }
+}
+"
+   "out" "out"
+
+   )
+
+
+
+  (run-intersept
+   "var tmp = \"out\";
+    {
+    fun in() {
+    tmp = \"redefine-out\";
+    }
+    var tmp = \"in\";
+    in();
+    }
+    print tmp;"
+   "redefine-out")
+
+  (run-intersept
+   "{var tmp = \"out\";
+        {fun in() {
+           tmp = \"redefine-out\";
+         }
+         var tmp = \"in\";
+         in();
+         }
+         print tmp;
+    }"
+   "redefine-out")
+
+
+(run-intersept
+   "var tmp = \"out\";
+    {
+    var tmp = \"in-\" + tmp;
+    print tmp;
+    }"
+   "Can't read local variable in its own initializer. [line 3]")
+
+  ;; (run-intersept
+  ;;  "{var a = 1;
+  ;;    var a = 2;
+  ;;   }"
+  ;;  "Already a variable with this name in this scope.")
+
+  ;; (run-intersept
+  ;;  "return true;"
+  ;;  "Can't return from top-level code.")
 
 
   )

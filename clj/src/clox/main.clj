@@ -4,6 +4,7 @@
    [clox.parser :as parser]
    [clox.interpreter :as interpreter]
    [clox.errors :as errors]
+   [clox.resolver :as resolver]
    [clojure.pprint]))
 
 (defn run
@@ -14,17 +15,23 @@
        (do
          (doseq [err errors]
            (errors/report err))
-         ::scanner-error)
+         ::scanner-errors)
        (let [{::parser/keys [statements errors]} (parser/parse tokens)]
          (if (seq errors)
            (do
              (doseq [err errors]
                (errors/report err))
-             ::parser-error)
-           (try (interpreter/interpret statements environment)
-                (catch clojure.lang.ExceptionInfo e
-                  (errors/report  (ex-data e))
-                  ::runtime-error))))))))
+             ::parser-errors)
+           (let [{::resolver/keys [locals errors]} (resolver/resolver statements)]
+             (if (seq errors)
+               (do
+                 (doseq [err errors]
+                   (errors/report err))
+                 ::resolve-errors)
+               (try (interpreter/interpret statements environment locals)
+                    (catch clojure.lang.ExceptionInfo e
+                      (errors/report  (ex-data e))
+                      ::runtime-error))))))))))
 
 (comment
   (run "print 4.1 * (2 + 3);")

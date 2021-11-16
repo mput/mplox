@@ -18,6 +18,10 @@
   [{{:keys [line]} :token message :message}]
   (println (str message " [line "  line  "]")))
 
+(defmethod report :resolver-error
+  [{{:keys [line]} :token message :message}]
+  (println (str message " [line "  line  "]")))
+
 (defmethod report :scanner
   [{:keys [message lexeme line]}]
   (report-1 line lexeme message))

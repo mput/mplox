@@ -40,9 +40,7 @@
   (env/define-env! (::env/local ctx) ename val)
   ctx)
 
-(defn- set-env-local! [{env ::env/local :as ctx} name-token val]
-  (env/set-env! env name-token val)
-  ctx)
+
 
 (defn global-envirement []
   (let [env (env/create-env)]
@@ -178,10 +176,20 @@
   [env {:keys [value]}]
   (set-result env value))
 
+(defn look-up-variable [ctx name-token]
+  (if-let [depth (get-in ctx [:locals name-token])]
+    (env/get-env-at (::env/local ctx) name-token depth)
+    (env/get-env (::env/global ctx) name-token)))
 
 (defmethod evaluate :expr/variable
   [ctx {:keys [name-token]}]
-  (set-result ctx (env/get-env (::env/local ctx) name-token)))
+  (set-result ctx (look-up-variable ctx name-token)))
+
+(defn- set-env-local! [ctx name-token val]
+  (if-let [depth (get-in ctx [:locals name-token])]
+    (env/set-env-at! (::env/local ctx) depth name-token val)
+    (env/set-env! (::env/global ctx) name-token val))
+  ctx)
 
 (defmethod evaluate :expr/assign
   [env {:keys [name-token value]}]
@@ -257,8 +265,7 @@
         (recur (execute env body))
         env))))
 
-(defmethod execute
-  :stmt/var
+(defmethod execute :stmt/var
   [env {:keys [name-token initializer]}]
   (let [env (if initializer
               (evaluate env initializer)
@@ -271,7 +278,7 @@
   (define-local-env! env (:lexeme name-token) (->Function declaration env)))
 
 (defmethod execute :stmt/return
-  [env {:keys [keyword-token value-expr]}]
+  [env {:keys [_keyword-token value-expr]}]
   (let [res (if value-expr
               (evaluate env value-expr)
               (set-result env nil))]
@@ -289,10 +296,14 @@
 
 
 
-(defn interpret [stmts envirement]
+(defn interpret [stmts envirement locals]
+  ;; (println "ENV: ")
+  ;; (clojure.pprint/pprint envirement)
+  ;; (println)
   (reduce (fn [ctx stmt]
             (execute ctx stmt))
-          (or envirement (global-envirement))
+          (update (or envirement (global-envirement))
+                  :locals merge locals)
           stmts))
 
 

@@ -8,12 +8,16 @@
 (defn token-type-from-string [s]
   (keyword "clox.scanner" s))
 
+
+
 (defn create-token
   ([type lexeme literal line]
    (cond-> {:type      type
             :lexeme    lexeme
-            :line      line}
+            :line      line
+            :token-id (str (java.util.UUID/randomUUID))}
      literal (assoc :literal  literal))))
+
 
 (defn create-error
   [msg lexeme line]
