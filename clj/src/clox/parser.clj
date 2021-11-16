@@ -2,18 +2,14 @@
   (:require [clox.scanner :as scanner]
             [clox.ast :as ast]))
 
-;; TODO: store node params in ctx list, refact without using multiple lets.
-
 (defn- new-parser-context [tokens]
   {::tokens tokens
-   ::ast-node nil
    ::current 0
    ::statements []
    ::errors []})
 
 (defn- get-current-token [{::keys [tokens current]}]
   (nth tokens current))
-
 
 (defn- advance [ctx]
   (update ctx ::current inc))
@@ -50,29 +46,50 @@
     (advance ctx)
     (throw-parser-error ctx msg)))
 
-(defn- binary-creator [ctx base & operators]
-  (loop [left (base ctx)]
-    (if (apply match-token left operators)
-      (let [operator (get-current-token left)
-            right (base (advance left))
-            expression (ast/new :expr/binary
-                                 (::ast-node left)
-                                 operator
-                                 (::ast-node right))]
-        (recur (set-ast-node right expression)))
-      left)))
+(defn- +token-param [ctx]
+  (-> ctx
+      (update ::node-params
+              (fnil conj [])
+              (get-current-token ctx))
+      (advance)))
 
-(defn- logic-creator [ctx base & operators]
-  (loop [left (base ctx)]
-    (if (apply match-token left operators)
-      (let [operator (get-current-token left)
-            right (base (advance left))
-            expression (ast/new :expr/logical
-                                (::ast-node left)
-                                operator
-                                (::ast-node right))]
-        (recur (set-ast-node right expression)))
-      left)))
+(defn- +skip-param [ctx]
+  (-> ctx
+      (update ::node-params (fnil conj []) nil)))
+
+(defn- +arbitrary-param [ctx val]
+  (-> ctx
+      (update ::node-params (fnil conj []) val)))
+
+(defn- +node-param [ctx node-parser]
+  (let [store-params (::node-params ctx)
+        after-parse-ctx (-> ctx
+                            (dissoc ::node-params)
+                            (node-parser)
+                            (assoc ::node-params store-params))]
+    (-> after-parse-ctx
+        (update ::node-params
+                (fnil conj [])
+                (::ast-node after-parse-ctx))
+        (dissoc ::ast-node))))
+
+(defn- set-node [ctx type]
+  (let [node (apply ast/new (cons type (::node-params ctx)))]
+    (-> ctx
+        (assoc ::ast-node node)
+        (dissoc ::node-params))))
+
+
+(defn- binary-creator [ctx type base operators]
+  (loop [left-ctx (base ctx)]
+    (if (apply match-token left-ctx operators)
+      (recur (-> left-ctx
+                 (+arbitrary-param (::ast-node left-ctx))
+                 (+token-param)
+                 (+node-param base)
+                 (set-node type)))
+      left-ctx)))
+
 
 (declare expression)
 
@@ -122,50 +139,50 @@
   (let [expr (primary ctx)]
     (loop [{calle-expr ::ast-node :as ctx} expr]
       (if (match-token ctx ::scanner/lparen)
-        (let [lprn (get-current-token ctx)
-              {arguments ::ast-node :as ctx} (arguments (advance ctx))]
-          (recur (set-ast-node (consume-with-check ctx
-                                                   ::scanner/rparen
-                                                   "Expect ')' after function arguments")
-                               (ast/new :expr/call
-                                        calle-expr
-                                        lprn
-                                        arguments))))
+        (let [next-call-ctx
+              (-> ctx
+                  (+arbitrary-param calle-expr)
+                  (+token-param)
+                  (+node-param arguments)
+                  (consume-with-check ::scanner/rparen
+                                      "Expect ')' after function arguments")
+                  (set-node :expr/call))]
+          (recur next-call-ctx))
         ctx))))
 
 (defn- unary [ctx]
   (if (match-token ctx ::scanner/bang ::scanner/minus)
-    (let [operator (get-current-token ctx)
-          right (unary (advance ctx))]
-      (set-ast-node right (ast/new :expr/unary
-                                operator
-                                (::ast-node right))))
+    (-> ctx
+        (+token-param)
+        (+node-param unary)
+        (set-node :expr/unary))
     (call ctx)))
 
-(defn- factor [ctx] (binary-creator ctx unary ::scanner/slash ::scanner/star))
-(defn- term [ctx] (binary-creator ctx factor ::scanner/plus ::scanner/minus))
+(defn- factor [ctx] (binary-creator ctx :expr/binary unary
+                                    [::scanner/slash ::scanner/star]))
+(defn- term [ctx] (binary-creator ctx :expr/binary factor
+                                  [::scanner/plus ::scanner/minus]))
 
 (defn- comprison [ctx]
-  (binary-creator ctx term
-                  ::scanner/greater
-                  ::scanner/greater-equal
-                  ::scanner/less
-                  ::scanner/less-equal))
+  (binary-creator ctx :expr/binary term
+                  [::scanner/greater
+                   ::scanner/greater-equal
+                   ::scanner/less
+                   ::scanner/less-equal]))
 
 (defn- equality [ctx]
-  (binary-creator ctx comprison
-                  ::scanner/bang-equal ::scanner/equal-equal))
+  (binary-creator ctx :expr/binary comprison
+                  [::scanner/bang-equal ::scanner/equal-equal]))
 
 (defn- var-expression? [ast-node]
   (= :expr/variable (:type ast-node)))
 
 (defn- logical-and [ctx]
-  (logic-creator ctx equality
-                  ::scanner/and))
-
+  (binary-creator ctx :expr/logical equality
+                 [::scanner/and]))
 (defn- logical-or [ctx]
-  (logic-creator ctx logical-and
-                  ::scanner/or))
+  (binary-creator ctx :expr/logical logical-and
+                 [::scanner/or]))
 
 (defn- assignment [ctx]
   (let [expr (logical-or ctx)]
@@ -183,12 +200,11 @@
   (assignment ctx))
 
 (defn- base-statement [ctx type]
-  (let [expr (expression ctx)]
-    (set-ast-node
-     (consume-with-check expr
-                         ::scanner/semicolon
-                         "Expect ';' after expression.")
-     (ast/new type (::ast-node expr)))))
+  (-> ctx
+      (+node-param expression)
+      (consume-with-check ::scanner/semicolon
+                          "Expect ';' after expression.")
+      (set-node type)))
 
 (declare declaration)
 (declare var-declaration)
@@ -207,21 +223,17 @@
         (recur statement-ctx (conj statements (::ast-node statement-ctx)))))))
 
 (defn- if-st [ctx]
-  (let [ctx (consume-with-check ctx
-                                ::scanner/lparen
-                                "Expect '(' after if.")
-        {expr ::ast-node :as ctx} (expression ctx)
-        ctx (consume-with-check ctx
-                                ::scanner/rparen
-                                "Expect ')' after if condition.")
-        {then ::ast-node :as ctx} (statement ctx)
-
-        else-ctx (when (match-token ctx ::scanner/else)
-                   (statement (advance ctx)))
-        else (::ast-node else-ctx)
-        ctx (or else-ctx ctx)]
-    (set-ast-node ctx
-                  (ast/new :stmt/if expr then else))))
+  (-> ctx
+      (consume-with-check ::scanner/lparen
+                          "Expect '(' after if.")
+      (+node-param expression)
+      (consume-with-check ::scanner/rparen
+                          "Expect ')' after if condition.")
+      (+node-param statement)
+      (as-> ctx' (if (match-token ctx' ::scanner/else)
+                   (+node-param (advance ctx') statement)
+                   (+skip-param ctx')))
+      (set-node :stmt/if)))
 
 (defn- while-st [ctx]
   (let [ctx (consume-with-check ctx

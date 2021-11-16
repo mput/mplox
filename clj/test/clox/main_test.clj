@@ -11,10 +11,12 @@
 (t/deftest main
   (run-intersept "print 5;" "5")
 
+  (run-intersept "print 5"
+                 "[line 1] Error  : Expect ';' after expression.")
+
   (run-intersept "print (-5);" "-5")
 
   (run-intersept "print (!!5);" "true")
-
 
   (run-intersept "var tvar = 3 * 2;
                   var bvar = 100;
