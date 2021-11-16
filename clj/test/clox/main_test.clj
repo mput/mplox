@@ -228,7 +228,7 @@ in();
    "redefine-out")
 
 
-(run-intersept
+  (run-intersept
    "var tmp = \"out\";
     {
     var tmp = \"in-\" + tmp;
@@ -236,15 +236,14 @@ in();
     }"
    "Can't read local variable in its own initializer. [line 3]")
 
-  ;; (run-intersept
-  ;;  "{var a = 1;
-  ;;    var a = 2;
-  ;;   }"
-  ;;  "Already a variable with this name in this scope.")
+  (run-intersept
+   "{var a = 1;
+     var a = 2;
+    }"
+   "Already a variable with this name in this scope. [line 2]")
 
-  ;; (run-intersept
-  ;;  "return true;"
-  ;;  "Can't return from top-level code.")
-
+  (run-intersept
+   "return true;"
+   "Can't return from top-level code. [line 1]")
 
   )

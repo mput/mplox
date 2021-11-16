@@ -1,5 +1,7 @@
 (ns clox.ast)
 
+;; TODO: create macros to generate new node.
+
 (def ast
   {:expr/assign [:name-token :value]
    :expr/logical [:left :operator :right]

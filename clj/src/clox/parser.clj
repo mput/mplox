@@ -2,6 +2,8 @@
   (:require [clox.scanner :as scanner]
             [clox.ast :as ast]))
 
+;; TODO: store node params in ctx list, refact without using multiple lets.
+
 (defn- new-parser-context [tokens]
   {::tokens tokens
    ::ast-node nil

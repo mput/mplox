@@ -1,9 +1,12 @@
 (ns clox.resolver)
 
+;; TODO: add macros for defmethods (one decloration for multiple types)
+
 (defn- new-parser-context []
   {::locals {}
    ::errors []
-   ::scopes '()})
+   ::scopes '()
+   ::fun-depth 0})
 
 
 (defn- push-scope [ctx]
@@ -78,9 +81,15 @@
       (resolve-all statements)
       (pop-scope)))
 
+(defn- check-if-var-declared [ctx name-token]
+  (if (get-in-top-scope ctx name-token)
+    (add-error ctx name-token "Already a variable with this name in this scope.")
+    ctx))
+
 (defmethod resolve-ast :stmt/var
   [ctx {:keys [name-token initializer]}]
   (-> ctx
+      (check-if-var-declared name-token)
       (declare* name-token)
       (resolve-ast initializer)
       (define* name-token)))
@@ -104,10 +113,12 @@
   (letfn [(define-params [ctx]
             (reduce define* ctx params))]
     (-> ctx
+        (update ::fun-depth inc)
         (push-scope)
         (define-params)
         (resolve-ast body)
-        (pop-scope))))
+        (pop-scope)
+        (update ::fun-depth inc))))
 
 (defmethod resolve-ast :stmt/fun
   [ctx {:keys [name-token _params _body] :as declaration}]
@@ -133,8 +144,12 @@
       (resolve-ast else-stmt)))
 
 (defmethod resolve-ast :stmt/return
-  [ctx {:keys [_keyword-token value-expr]}]
-  (resolve-ast ctx value-expr))
+  [ctx {:keys [keyword-token value-expr]}]
+  (cond-> ctx
+    (zero? (::fun-depth ctx))
+    (add-error keyword-token "Can't return from top-level code.")
+
+    :anyway (resolve-ast value-expr)))
 
 (defmethod resolve-ast :stmt/while
   [ctx {:keys [condition-expr body]}]
