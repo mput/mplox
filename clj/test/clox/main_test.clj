@@ -257,10 +257,26 @@ class Nice {
     }
 }
 print Nice;
+var nicer = Nice();
+print nicer;
 "
    "Nice"
-
-
+   "Nice instance"
    )
+
+;; (sut/run
+;;    "
+;; class Nice {
+;;     beNice () {
+;;     return \"You are Nice\";
+;;     }
+;; }
+;; print Nice;
+;; print Nice();
+;; "
+
+
+;;    )
+
 
   )

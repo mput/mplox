@@ -81,13 +81,19 @@
   (arity [this] (count (get-in this [:declaration :params] )))
   (toString [this] (str "<fn "  (get-in this [:declaration :name-token :lexeme]) ">")))
 
+(defprotocol LoxInstance)
 
-(defprotocol LoxClass
-  (toString [this]))
+(defrecord Instance
+    [class*]
+  LoxInstance
+  (toString [this] (str (get-in this [:class* :name]) " instance")))
 
 (defrecord ClassDeclaration
   [name]
-  LoxClass
+  LoxCallable
+  (call [this env arguments]
+    (set-result env (->Instance this)))
+  (arity [this] 0)
   (toString [this] (:name this)))
 
 (defmethod evaluate :expr/logical
