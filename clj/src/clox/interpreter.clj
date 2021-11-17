@@ -82,29 +82,30 @@
   (toString [this] (str "<fn "  (get-in this [:declaration :name-token :lexeme]) ">")))
 
 (defprotocol LoxInstance
-  (getn [this token]))
+  (getn [this token])
+  (setn! [this token v]))
 
 (defrecord Instance
-    [class*]
+    [class* state]
   clox.interpreter.LoxInstance
   (getn [this token]
-    (let [state (:state this)
-          val (when state
-                (get-in @state [(:lexeme token)]
-                        ::not-found))]
-      (when (or (not state)
-                (= ::not-found val))
+    (let [val (get-in @(:state this) [(:lexeme token)]
+                      ::not-found)]
+      (when (= ::not-found val)
         (throw (errors/runtime-error token
                                      (str  "Undefined property '"
                                            (:lexeme token) "'."))))
       val))
+  (setn! [{state :state} token v]
+    (swap! state assoc (:lexeme token) v))
+
   (toString [this] (str (get-in this [:class* :name]) " instance")))
 
 (defrecord ClassDeclaration
   [name]
   LoxCallable
   (call [this env arguments]
-    (set-result env (->Instance this)))
+    (set-result env (->Instance this (atom {}))))
   (arity [this] 0)
   (toString [this] (:name this)))
 
@@ -253,7 +254,19 @@
     (when-not (instance? clox.interpreter.LoxInstance inst)
       (throw (errors/runtime-error name-token
                                    "Only instances have properties.")))
-    (getn inst name-token)))
+    (set-result env* (getn inst name-token))))
+
+(defmethod evaluate :expr/set
+  [env {:keys [object-expr name-token value]}]
+  (let [inst-env (evaluate env object-expr)
+        inst (get-result inst-env)
+        val-env (evaluate inst-env value)
+        val (get-result val-env)]
+    (when-not (instance? clox.interpreter.LoxInstance inst)
+      (throw (errors/runtime-error name-token
+                                   "Only instances have properties.")))
+    (setn! inst name-token val)
+    (set-result val-env #_inst val)))
 
 
 (defn strinfigy [val]

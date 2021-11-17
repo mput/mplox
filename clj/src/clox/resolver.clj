@@ -127,9 +127,13 @@
       (resolve-function declaration)))
 
 (defmethod resolve-ast :stmt/class
-  [ctx {:keys [name-token methods] :as declaration}]
+  [ctx {:keys [name-token methods]}]
   (-> ctx
-      (define* name-token)))
+      (define* name-token)
+      (as-> ctx'
+          (reduce (fn [ctx'' declaration] (resolve-function ctx'' declaration))
+                  ctx'
+                  methods))))
 
 (defmethod resolve-ast :stmt/expression
   [ctx {:keys [expression]}]
@@ -145,6 +149,11 @@
   [ctx {:keys [object-expr]}]
   (resolve-ast ctx object-expr))
 
+(defmethod resolve-ast :expr/set
+  [ctx {:keys [object-expr _name-token value]}]
+  (-> ctx
+      (resolve-ast object-expr)
+      (resolve-ast value)))
 
 (defmethod resolve-ast :stmt/if
   [ctx {:keys [condition-expr then-stmt else-stmt]}]

@@ -5,6 +5,7 @@
 (def ast
   {:expr/assign [:name-token :value]
    :expr/logical [:left :operator :right]
+   :expr/set [:object-expr :name-token :value]
    :expr/call [:calle-expr :paren-token :arguments-exprs]
    :expr/get [:object-expr :name-token]
    :expr/binary [:left :operator :right]

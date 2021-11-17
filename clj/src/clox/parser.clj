@@ -207,8 +207,6 @@
   (binary-creator ctx :expr/binary comprison
                   [::scanner/bang-equal ::scanner/equal-equal]))
 
-(defn- var-expression? [ast-node]
-  (= :expr/variable (:type ast-node)))
 
 (defn- logical-and [ctx]
   (binary-creator ctx :expr/logical equality
@@ -217,16 +215,31 @@
   (binary-creator ctx :expr/logical logical-and
                  [::scanner/or]))
 
+(defn- var-expression? [ast-node]
+  (= :expr/variable (:type ast-node)))
+
+(defn- get-expression? [ast-node]
+  (= :expr/get (:type ast-node)))
+
 (defn- assignment [ctx]
   (let [expr (logical-or ctx)]
     (if (match-token expr ::scanner/equal)
       (let [value (assignment (advance expr))]
-        (if (var-expression? (::ast-node expr))
+        (cond
+          (var-expression? (::ast-node expr))
           (set-ast-node value
                         (ast/new :expr/assign
                                  (:name-token (::ast-node expr))
                                  (::ast-node value)))
-          (throw-parser-error expr "Wrong assignment target")))
+
+          (get-expression? (::ast-node expr))
+          (set-ast-node value
+                        (ast/new :expr/set
+                                 (:object-expr (::ast-node expr))
+                                 (:name-token (::ast-node expr))
+                                 (::ast-node value)))
+
+          :else (throw-parser-error expr "Wrong assignment target")))
       expr)))
 
 (defn- expression [ctx]
@@ -465,7 +478,7 @@
       (ex-data e))))
 
 (comment
-  (parse (:tokens (clox.scanner/scanner "her().me();")))
+  (parse (:tokens (clox.scanner/scanner "her().give.me = 4;")))
 
   (parse (:tokens (clox.scanner/scanner "help(1, 2)(777, 944);")))
 

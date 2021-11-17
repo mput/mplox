@@ -273,19 +273,27 @@ Nice().unk;
    "Undefined property 'unk'. [line 4]"
    )
 
-;; (sut/run
+  (run-intersept
+   "
+class Nice {
+}
+var nicer = Nice();
+nicer.known = 4;
+print nicer.known;
+"
+   4
+   )
+
+;;   (run-intersept
 ;;    "
 ;; class Nice {
-;;     beNice () {
-;;     return \"You are Nice\";
-;;     }
 ;; }
-;; print Nice;
-;; print Nice();
+;; var nicer = Nice().known = 4;
+;; print nicer.known;
 ;; "
-
-
+;;    4
 ;;    )
+
 
 
   )
