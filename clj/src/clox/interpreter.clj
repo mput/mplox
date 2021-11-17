@@ -91,18 +91,20 @@
   (getn [this token]
     (let [val (get-in @(:state this) [(:lexeme token)]
                       ::not-found)]
-      (when (= ::not-found val)
-        (throw (errors/runtime-error token
-                                     (str  "Undefined property '"
-                                           (:lexeme token) "'."))))
-      val))
+      (if (= ::not-found val)
+        (if-let [method (get (:methods class*) (:lexeme token))]
+          method
+          (throw (errors/runtime-error token
+                                       (str  "Undefined property '"
+                                             (:lexeme token) "'."))))
+        val)))
   (setn! [{state :state} token v]
     (swap! state assoc (:lexeme token) v))
 
   (toString [this] (str (get-in this [:class* :name]) " instance")))
 
 (defrecord ClassDeclaration
-  [name]
+  [name methods]
   LoxCallable
   (call [this env arguments]
     (set-result env (->Instance this (atom {}))))
@@ -330,8 +332,11 @@
 
 (defmethod execute :stmt/class
   [env {:keys [name-token methods] :as declaration}]
-  (define-local-env! env (:lexeme name-token) (->ClassDeclaration (:lexeme name-token))
-    #_(->Class declaration env)))
+  (let [method-fns (reduce (fn [acc {:keys [name-token] :as declaration}]
+                             (assoc acc (:lexeme name-token) (->Function declaration env)))
+                           {}
+                           methods)]
+    (define-local-env! env (:lexeme name-token) (->ClassDeclaration (:lexeme name-token) method-fns))))
 
 
 (defmethod execute :stmt/return

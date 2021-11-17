@@ -284,6 +284,35 @@ print nicer.known;
    4
    )
 
+  (run-intersept
+   "
+class Nice {
+sayHi (){
+print \"Hi!\";
+}
+}
+Nice().sayHi();
+"
+   "Hi!"
+   )
+
+(run-intersept
+   "
+class Nice {
+sayHi (){
+print \"Hi!\";
+}
+}
+var nicer = Nice();
+nicer.sayHi();
+nicer.sayHi = 42;
+nicer.sayHi();
+"
+   "Hi!"
+   "Can only call functions and classes. [line 10]"
+   )
+
+
 ;;   (run-intersept
 ;;    "
 ;; class Nice {
