@@ -81,11 +81,23 @@
   (arity [this] (count (get-in this [:declaration :params] )))
   (toString [this] (str "<fn "  (get-in this [:declaration :name-token :lexeme]) ">")))
 
-(defprotocol LoxInstance)
+(defprotocol LoxInstance
+  (getn [this token]))
 
 (defrecord Instance
     [class*]
-  LoxInstance
+  clox.interpreter.LoxInstance
+  (getn [this token]
+    (let [state (:state this)
+          val (when state
+                (get-in @state [(:lexeme token)]
+                        ::not-found))]
+      (when (or (not state)
+                (= ::not-found val))
+        (throw (errors/runtime-error token
+                                     (str  "Undefined property '"
+                                           (:lexeme token) "'."))))
+      val))
   (toString [this] (str (get-in this [:class* :name]) " instance")))
 
 (defrecord ClassDeclaration
@@ -232,6 +244,17 @@
                                         (count args)  "."))))
 
     (callable/call calle env args)))
+
+
+(defmethod evaluate :expr/get
+  [env {:keys [object-expr name-token]}]
+  (let [env* (evaluate env object-expr)
+        inst (get-result env*)]
+    (when-not (instance? clox.interpreter.LoxInstance inst)
+      (throw (errors/runtime-error name-token
+                                   "Only instances have properties.")))
+    (getn inst name-token)))
+
 
 (defn strinfigy [val]
   (cond

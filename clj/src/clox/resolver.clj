@@ -141,6 +141,11 @@
   [ctx {:keys [expression]}]
   (resolve-ast ctx expression))
 
+(defmethod resolve-ast :expr/get
+  [ctx {:keys [object-expr]}]
+  (resolve-ast ctx object-expr))
+
+
 (defmethod resolve-ast :stmt/if
   [ctx {:keys [condition-expr then-stmt else-stmt]}]
   (-> ctx

@@ -264,6 +264,15 @@ print nicer;
    "Nice instance"
    )
 
+  (run-intersept
+   "
+class Nice {
+}
+Nice().unk;
+"
+   "Undefined property 'unk'. [line 4]"
+   )
+
 ;; (sut/run
 ;;    "
 ;; class Nice {
