@@ -19,10 +19,10 @@
    :stmt/print [:expression]
    :stmt/var [:name-token :initializer]
    :stmt/fun [:name-token :params :body]
+   :stmt/class [:name-token :methods]
    :stmt/return [:keyword-token :value-expr]})
 
 (defn new
   [type & operands]
-  (assoc (->> (map vector (get ast type) operands)
-              (into {}))
-         :type type))
+  (->> (map vector (get ast type) operands)
+       (into {:type type})))

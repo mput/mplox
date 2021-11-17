@@ -46,12 +46,19 @@
     (advance ctx)
     (throw-parser-error ctx msg)))
 
+
+
 (defn- +token-param [ctx]
   (-> ctx
       (update ::node-params
               (fnil conj [])
               (get-current-token ctx))
       (advance)))
+
+(defn- +consume-with-check [ctx token-type msg]
+  (if (match-token ctx token-type)
+    (+token-param ctx)
+    (throw-parser-error ctx msg)))
 
 (defn- +skip-param [ctx]
   (-> ctx
@@ -72,6 +79,21 @@
                 (fnil conj [])
                 (::ast-node after-parse-ctx))
         (dissoc ::ast-node))))
+
+(defn- +node-param-conj-last [ctx node-parser]
+  (let [store-params (::node-params ctx)
+        after-parse-ctx (-> ctx
+                            (dissoc ::node-params)
+                            (node-parser)
+                            (assoc ::node-params store-params))
+
+        new-params (conj (vec (butlast store-params))
+                         (conj (last store-params)
+                               (::ast-node after-parse-ctx)))]
+    (-> after-parse-ctx
+        (assoc ::node-params new-params)
+        (dissoc ::ast-node))))
+
 
 (defn- set-node [ctx type]
   (let [node (apply ast/new (cons type (::node-params ctx)))]
@@ -354,7 +376,7 @@
               (get-current-token ctx)
               (::ast-node expression-ctx)))))
 
-(defn- fun-declaration [ctx kind]
+(defn- fun-declaration [kind ctx]
   (let [name (get-current-token ctx)
         ctx (consume-with-check ctx
                                 ::scanner/identifier
@@ -362,7 +384,7 @@
 
         ctx (consume-with-check ctx
                                 ::scanner/lparen
-                                (str "Expect '(' after " kind "name."))
+                                (str "Expect '(' after " kind " name."))
         {params ::ast-node :as ctx}
         (if (match-token ctx ::scanner/rparen)
           (set-ast-node ctx [])
@@ -382,7 +404,7 @@
 
         ctx (consume-with-check ctx
                                 ::scanner/lbrace
-                                (str "Expect '{' before " kind "name."))
+                                (str "Expect '{' before " kind " name."))
 
         {body ::ast-node :as ctx}
         (block ctx)]
@@ -392,13 +414,31 @@
                            params
                            body))))
 
+(defn- class-declaration [ctx]
+  (let [ctx (-> ctx
+                (+consume-with-check ::scanner/identifier "Expect class name.")
+                (consume-with-check ::scanner/lbrace "Expect '{' before class body."))
+        methods-ctx (loop [ctx' (+arbitrary-param ctx [])]
+                      (if (or (match-token ctx' ::scanner/rbrace)
+                              (at-eof? ctx'))
+                        ctx'
+                        (recur (+node-param-conj-last ctx'
+                                                      (partial fun-declaration "method")))))]
+    (-> methods-ctx
+        (consume-with-check ::scanner/rbrace "Expect '}' before class body.")
+        (set-node :stmt/class))))
+
 (defn- declaration [ctx]
   (cond
     (match-token ctx ::scanner/var)
     (var-declaration (advance ctx))
 
     (match-token ctx ::scanner/fun)
-    (fun-declaration (advance ctx) "function")
+    (fun-declaration "function" (advance ctx))
+
+
+    (match-token ctx ::scanner/class)
+    (class-declaration (advance ctx))
 
     :else (statement ctx)))
 
@@ -417,5 +457,11 @@
   (parse (:tokens (clox.scanner/scanner "return 5;")))
 
   (parse (:tokens (clox.scanner/scanner "help(1, 2)(777, 944);")))
+
+
+  (parse (:tokens (clox.scanner/scanner "class New {
+help (a) {print a;}
+me (a) {print a;}
+}")))
 
   )
