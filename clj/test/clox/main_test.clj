@@ -334,6 +334,41 @@ print maximGreater(\"my\");
    "this;"
    "Can't use 'this' outside of a class. [line 1]")
 
+  (run-intersept
+    "
+class User {
+    init(nm) {
+      this.name = nm;
+    }
+    names() {
+      print this.name;
+    }
+}
+
+var us = User(\"Maxim\");
+us.names();
+"
+    "Maxim")
+
+
+  (run-intersept
+   "
+class User {
+  init() {
+  }
+  notinit() {
+  }
+}
+var a = User();
+
+print a.init();
+print a.notinit();
+"
+"User instance"
+"nil"
+   )
+
+
 
 
 

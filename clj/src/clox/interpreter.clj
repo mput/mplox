@@ -59,7 +59,7 @@
 (defmulti evaluate (fn [_env {t :type}] t))
 (defmulti execute (fn [_env {t :type}] t))
 
-(defrecord Function [declaration env]
+(defrecord Function [declaration env initializer?]
   LoxCallable
   (call [this call-env arguments]
     (let [params (get-in this [:declaration :params] )
@@ -70,11 +70,18 @@
 
           result (try (execute fn-env (get-in this [:declaration :body]))
                       (set-result call-env nil)
+                      (if initializer?
+                        (set-result call-env
+                                    (env/get-env-at (get-in this [:env ::env/local]) {:lexeme "this"} 0))
+                        (set-result call-env nil))
                       (catch clojure.lang.ExceptionInfo e
                         (when-not (= (:type (ex-data e))
                                      :fun-return)
                           (throw e))
-                        (set-result call-env (get-result (:env (ex-data e))))))]
+                        (if initializer?
+                          (set-result call-env
+                                      (env/get-env-at (get-in this [:env ::env/local]) {:lexeme "this"} 0))
+                          (set-result call-env (get-result (:env (ex-data e)))))))]
 
       result))
 
@@ -113,8 +120,17 @@
   [name methods]
   LoxCallable
   (call [this env arguments]
-    (set-result env (->Instance this (atom {}))))
-  (arity [this] 0)
+    (let [instance (->Instance this (atom {}))
+          initializer (get methods "init")]
+      (when initializer
+        (callable/call (bind-this-env initializer instance)
+                       env
+                       arguments))
+      (set-result env instance)))
+  (arity [this] 0
+    (if-let [initializer (get methods "init")]
+      (callable/arity initializer)
+      0))
   (toString [this] (:name this)))
 
 (defmethod evaluate :expr/logical
@@ -338,12 +354,16 @@
 
 (defmethod execute :stmt/fun
   [env {:keys [name-token params body] :as declaration}]
-  (define-local-env! env (:lexeme name-token) (->Function declaration env)))
+  (define-local-env! env (:lexeme name-token) (->Function declaration env false)))
 
 (defmethod execute :stmt/class
   [env {:keys [name-token methods] :as declaration}]
   (let [method-fns (reduce (fn [acc {:keys [name-token] :as declaration}]
-                             (assoc acc (:lexeme name-token) (->Function declaration env)))
+                             (assoc acc (:lexeme name-token)
+                                    (->Function declaration env
+                                                (if (= (:lexeme name-token) "init")
+                                                  true
+                                                  false))))
                            {}
                            methods)]
     (define-local-env! env (:lexeme name-token) (->ClassDeclaration (:lexeme name-token) method-fns))))
