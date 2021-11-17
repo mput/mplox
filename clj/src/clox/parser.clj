@@ -130,6 +130,9 @@
     (match-token ctx ::scanner/nil)
     (advance (set-ast-node ctx (ast/new :expr/literal nil)))
 
+    (match-token ctx ::scanner/this)
+    (advance (set-ast-node ctx (ast/new :expr/this (get-current-token ctx))))
+
     (match-token ctx ::scanner/lparen)
     (let [lprn (advance ctx)
           grp (expression lprn)
@@ -359,7 +362,7 @@
           (expression ctx))]
     (set-ast-node (consume-with-check ctx
                                       ::scanner/semicolon
-                                      "Expect ';' after loop condition.")
+                                      "Expect ';' after return statement.")
                   (ast/new :stmt/return keyword value))))
 
 (defn- statement [ctx]
@@ -478,7 +481,7 @@
       (ex-data e))))
 
 (comment
-  (parse (:tokens (clox.scanner/scanner "her().give.me = 4;")))
+  (parse (:tokens (clox.scanner/scanner "this;")))
 
   (parse (:tokens (clox.scanner/scanner "help(1, 2)(777, 944);")))
 

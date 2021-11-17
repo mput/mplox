@@ -312,16 +312,27 @@ nicer.sayHi();
    "Can only call functions and classes. [line 10]"
    )
 
+  (run-intersept
+   "
+class Nice {
+sayHi (name) {
+return \"Hi \" + this.uname + \" \" + name + \"!\";
+}
+}
+var nicer = Nice();
+nicer.uname = \"Maxim\";
+var maximGreater = nicer.sayHi;
+print maximGreater(\"dear\");
+nicer.uname = \"Nik\";
+print maximGreater(\"my\");
+"
+   "Hi Maxim dear!"
+   "Hi Nik my!"
+   )
 
-;;   (run-intersept
-;;    "
-;; class Nice {
-;; }
-;; var nicer = Nice().known = 4;
-;; print nicer.known;
-;; "
-;;    4
-;;    )
+
+
+
 
 
 

@@ -85,6 +85,12 @@
   (getn [this token])
   (setn! [this token v]))
 
+(defn- bind-this-env [method this]
+  (let [cur-method-env (:env method)
+        rebinded-env (env/enclose-env cur-method-env)]
+    (define-local-env! rebinded-env "this" this)
+    (assoc method :env rebinded-env)))
+
 (defrecord Instance
     [class* state]
   clox.interpreter.LoxInstance
@@ -93,7 +99,7 @@
                       ::not-found)]
       (if (= ::not-found val)
         (if-let [method (get (:methods class*) (:lexeme token))]
-          method
+          (bind-this-env method this)
           (throw (errors/runtime-error token
                                        (str  "Undefined property '"
                                              (:lexeme token) "'."))))
@@ -214,6 +220,10 @@
 (defmethod evaluate :expr/variable
   [ctx {:keys [name-token]}]
   (set-result ctx (look-up-variable ctx name-token)))
+
+(defmethod evaluate :expr/this
+  [ctx {:keys [token]}]
+  (set-result ctx (look-up-variable ctx token)))
 
 (defn- set-env-local! [ctx name-token val]
   (if-let [depth (get-in ctx [:locals name-token])]

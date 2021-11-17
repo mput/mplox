@@ -43,7 +43,7 @@
   (let [env (get-scope-at env* depth)
         v (get-in @env [::values (:lexeme name-token)] ::not-found)]
     (if (= v ::not-found)
-      (throw (ex-info "Impossible missing var." {}))
+      (throw (ex-info "Impossible missing var." {:msg "Impossible missing var in setter."}))
       (swap! env assoc-in [::values (:lexeme name-token)] val))))
 
 
@@ -52,7 +52,7 @@
                   [::values (:lexeme name-token)]
                   ::not-found)]
     (if (= v ::not-found)
-      (throw (ex-info "Impossible missing var." {}))
+      (throw (ex-info "Impossible missing var." {:msg "Impossible missing var in getter."}))
       v)))
 
 

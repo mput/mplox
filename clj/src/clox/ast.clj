@@ -13,6 +13,7 @@
    :expr/grouping [:expression]
    :expr/literal [:value]
    :expr/variable [:name-token]
+   :expr/this [:token]
 
    :stmt/expression [:expression]
    :stmt/block [:statements]

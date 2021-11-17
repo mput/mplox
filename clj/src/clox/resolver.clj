@@ -130,10 +130,17 @@
   [ctx {:keys [name-token methods]}]
   (-> ctx
       (define* name-token)
+      (push-scope)
+      (define* {:lexeme "this"})
       (as-> ctx'
           (reduce (fn [ctx'' declaration] (resolve-function ctx'' declaration))
                   ctx'
-                  methods))))
+                  methods))
+      (pop-scope)))
+
+(defmethod resolve-ast :expr/this
+  [ctx {:keys [token]}]
+  (resolve-local ctx token))
 
 (defmethod resolve-ast :stmt/expression
   [ctx {:keys [expression]}]
