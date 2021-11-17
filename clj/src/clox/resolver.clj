@@ -6,7 +6,8 @@
   {::locals {}
    ::errors []
    ::scopes '()
-   ::fun-depth 0})
+   ::current-function ::none
+   ::current-class ::none})
 
 
 (defn- push-scope [ctx]
@@ -110,15 +111,16 @@
 
 (defn- resolve-function
   [ctx {:keys [_name-token params body]}]
-  (letfn [(define-params [ctx]
-            (reduce define* ctx params))]
+  (let [define-params (fn [ctx]
+                        (reduce define* ctx params))
+        in-cur-fun (::current-function ctx)]
     (-> ctx
-        (update ::fun-depth inc)
+        (assoc ::current-function ::function)
         (push-scope)
         (define-params)
         (resolve-ast body)
         (pop-scope)
-        (update ::fun-depth inc))))
+        (assoc ::current-function in-cur-fun))))
 
 (defmethod resolve-ast :stmt/fun
   [ctx {:keys [name-token _params _body] :as declaration}]
@@ -128,19 +130,28 @@
 
 (defmethod resolve-ast :stmt/class
   [ctx {:keys [name-token methods]}]
-  (-> ctx
-      (define* name-token)
-      (push-scope)
-      (define* {:lexeme "this"})
-      (as-> ctx'
-          (reduce (fn [ctx'' declaration] (resolve-function ctx'' declaration))
-                  ctx'
-                  methods))
-      (pop-scope)))
+  (let [in-cur-class (::current-class ctx)]
+    (-> ctx
+        (assoc ::current-class ::class)
+        (define* name-token)
+        (push-scope)
+        (define* {:lexeme "this"})
+        (as-> ctx'
+            (reduce (fn [ctx'' declaration]
+                      (resolve-function ctx'' declaration))
+                    ctx'
+                    methods))
+        (pop-scope)
+        (assoc ::current-class in-cur-class))))
 
 (defmethod resolve-ast :expr/this
   [ctx {:keys [token]}]
-  (resolve-local ctx token))
+  (cond-> ctx
+    (= (::current-class ctx)
+       ::none)
+    (add-error token "Can't use 'this' outside of a class.")
+
+    :anyway (resolve-local token)))
 
 (defmethod resolve-ast :stmt/expression
   [ctx {:keys [expression]}]
@@ -172,7 +183,8 @@
 (defmethod resolve-ast :stmt/return
   [ctx {:keys [keyword-token value-expr]}]
   (cond-> ctx
-    (zero? (::fun-depth ctx))
+    (= (::current-function ctx)
+       ::none)
     (add-error keyword-token "Can't return from top-level code.")
 
     :anyway (resolve-ast value-expr)))

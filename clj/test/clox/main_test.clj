@@ -330,7 +330,9 @@ print maximGreater(\"my\");
    "Hi Nik my!"
    )
 
-
+  (run-intersept
+   "this;"
+   "Can't use 'this' outside of a class. [line 1]")
 
 
 
