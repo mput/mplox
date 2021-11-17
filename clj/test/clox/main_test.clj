@@ -248,4 +248,19 @@ in();
    "return true;"
    "Can't return from top-level code. [line 1]")
 
+
+  (run-intersept
+   "
+class Nice {
+    beNice () {
+    return \"You are Nice\";
+    }
+}
+print Nice;
+"
+   "Nice"
+
+
+   )
+
   )

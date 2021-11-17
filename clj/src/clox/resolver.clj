@@ -126,6 +126,11 @@
       (define* name-token)
       (resolve-function declaration)))
 
+(defmethod resolve-ast :stmt/class
+  [ctx {:keys [name-token methods] :as declaration}]
+  (-> ctx
+      (define* name-token)))
+
 (defmethod resolve-ast :stmt/expression
   [ctx {:keys [expression]}]
   (resolve-ast ctx expression))

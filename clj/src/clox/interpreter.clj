@@ -81,6 +81,15 @@
   (arity [this] (count (get-in this [:declaration :params] )))
   (toString [this] (str "<fn "  (get-in this [:declaration :name-token :lexeme]) ">")))
 
+
+(defprotocol LoxClass
+  (toString [this]))
+
+(defrecord ClassDeclaration
+  [name]
+  LoxClass
+  (toString [this] (:name this)))
+
 (defmethod evaluate :expr/logical
   [env {:keys [left operator right]}]
   (let [env (evaluate env left)
@@ -276,6 +285,12 @@
 (defmethod execute :stmt/fun
   [env {:keys [name-token params body] :as declaration}]
   (define-local-env! env (:lexeme name-token) (->Function declaration env)))
+
+(defmethod execute :stmt/class
+  [env {:keys [name-token methods] :as declaration}]
+  (define-local-env! env (:lexeme name-token) (->ClassDeclaration (:lexeme name-token))
+    #_(->Class declaration env)))
+
 
 (defmethod execute :stmt/return
   [env {:keys [_keyword-token value-expr]}]
