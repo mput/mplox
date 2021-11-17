@@ -158,19 +158,30 @@
           (set-ast-node ctx args))))))
 
 (defn- call [ctx]
-  (let [expr (primary ctx)]
-    (loop [{calle-expr ::ast-node :as ctx} expr]
-      (if (match-token ctx ::scanner/lparen)
-        (let [next-call-ctx
-              (-> ctx
-                  (+arbitrary-param calle-expr)
-                  (+token-param)
-                  (+node-param arguments)
-                  (consume-with-check ::scanner/rparen
-                                      "Expect ')' after function arguments")
-                  (set-node :expr/call))]
-          (recur next-call-ctx))
-        ctx))))
+  (loop [{calle-expr ::ast-node :as ctx} (primary ctx)]
+    (cond
+      (match-token ctx ::scanner/lparen)
+      (let [next-call-ctx
+            (-> ctx
+                (+arbitrary-param calle-expr)
+                (+token-param)
+                (+node-param arguments)
+                (consume-with-check ::scanner/rparen
+                                    "Expect ')' after function arguments")
+                (set-node :expr/call))]
+        (recur next-call-ctx))
+
+      (match-token ctx ::scanner/dot)
+      (let [next-call-ctx
+            (-> ctx
+                advance
+                (+arbitrary-param calle-expr)
+                (+consume-with-check ::scanner/identifier
+                                     "Expect property name after '.'.")
+                (set-node :expr/get))]
+        (recur next-call-ctx))
+
+      :else ctx)))
 
 (defn- unary [ctx]
   (if (match-token ctx ::scanner/bang ::scanner/minus)
@@ -454,7 +465,7 @@
       (ex-data e))))
 
 (comment
-  (parse (:tokens (clox.scanner/scanner "return 5;")))
+  (parse (:tokens (clox.scanner/scanner "her().me();")))
 
   (parse (:tokens (clox.scanner/scanner "help(1, 2)(777, 944);")))
 
