@@ -368,8 +368,23 @@ print a.notinit();
 "nil"
    )
 
+(run-intersept
+   "
+class User {
+  init() {
+    return true;
+  }
+}"
+   "Can't return from top-level code. [line 4]")
 
-
+(run-intersept
+   "
+class User {
+  init() {
+    return;
+  }
+}"
+   "")
 
 
 

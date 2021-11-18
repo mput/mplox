@@ -110,12 +110,12 @@
       (resolve-local name-token)))
 
 (defn- resolve-function
-  [ctx {:keys [_name-token params body]}]
+  [ctx {:keys [_name-token params body]} type]
   (let [define-params (fn [ctx]
                         (reduce define* ctx params))
         in-cur-fun (::current-function ctx)]
     (-> ctx
-        (assoc ::current-function ::function)
+        (assoc ::current-function type)
         (push-scope)
         (define-params)
         (resolve-ast body)
@@ -126,7 +126,7 @@
   [ctx {:keys [name-token _params _body] :as declaration}]
   (-> ctx
       (define* name-token)
-      (resolve-function declaration)))
+      (resolve-function declaration ::function)))
 
 (defmethod resolve-ast :stmt/class
   [ctx {:keys [name-token methods]}]
@@ -138,7 +138,11 @@
         (define* {:lexeme "this"})
         (as-> ctx'
             (reduce (fn [ctx'' declaration]
-                      (resolve-function ctx'' declaration))
+                      (resolve-function ctx'' declaration
+                                        (if (= (get-in declaration [:name-token :lexeme])
+                                               "init")
+                                          ::initializer
+                                          ::method)))
                     ctx'
                     methods))
         (pop-scope)
@@ -185,6 +189,11 @@
   (cond-> ctx
     (= (::current-function ctx)
        ::none)
+    (add-error keyword-token "Can't return from top-level code.")
+
+    (and (= (::current-function ctx)
+            ::initializer)
+         value-expr)
     (add-error keyword-token "Can't return from top-level code.")
 
     :anyway (resolve-ast value-expr)))
