@@ -98,6 +98,13 @@
     (define-local-env! rebinded-env "this" this)
     (assoc method :env rebinded-env)))
 
+(defn find-method [{:keys [methods super-class] :as _class}
+                   token]
+  (if-let [method (get methods (:lexeme token))]
+    method
+    (when super-class
+      (recur super-class token))))
+
 (defrecord Instance
     [class* state]
   clox.interpreter.LoxInstance
@@ -105,7 +112,7 @@
     (let [val (get-in @(:state this) [(:lexeme token)]
                       ::not-found)]
       (if (= ::not-found val)
-        (if-let [method (get (:methods class*) (:lexeme token))]
+        (if-let [method (find-method class* token)]
           (bind-this-env method this)
           (throw (errors/runtime-error token
                                        (str  "Undefined property '"
@@ -372,7 +379,10 @@
       (when-not (instance? clox.interpreter.ClassDeclaration super-class-instansce)
         (throw (errors/runtime-error name-token
                                      "Superclass must be a class."))))
-    (define-local-env! env (:lexeme name-token) (->ClassDeclaration (:lexeme name-token) method-fns super-class))))
+    (define-local-env! env (:lexeme name-token)
+      (->ClassDeclaration (:lexeme name-token)
+                          method-fns
+                          super-class-instansce))))
 
 
 (defmethod execute :stmt/return

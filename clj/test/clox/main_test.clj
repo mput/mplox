@@ -415,8 +415,24 @@ class User < str {
    "Superclass must be a class. [line 3]"
    )
 
-;; "A class can't inherit from itself."
-;; "Superclass must be a class."
+  (run-intersept
+   "
+class Person {
+  intro () {
+    print \"My name is \" + this.name;
+  }
+}
+
+class User < Person {
+  init(nm) {
+    this.name = nm;
+  }
+}
+var kolya = User(\"Kolya\");
+kolya.intro();
+
+"
+   "My name is Kolya")
 
 
   )
