@@ -240,6 +240,11 @@
     (env/get-env-at (::env/local ctx) name-token depth)
     (env/get-env (::env/global ctx) name-token)))
 
+(defn look-up-local-variable-at-offset [ctx from-token offset look-token]
+  (let [depth (+ (get-in ctx [:locals from-token])
+                 offset)]
+    (env/get-env-at (::env/local ctx) look-token depth)))
+
 (defmethod evaluate :expr/variable
   [ctx {:keys [name-token]}]
   (set-result ctx (look-up-variable ctx name-token)))
@@ -247,6 +252,17 @@
 (defmethod evaluate :expr/this
   [ctx {:keys [token]}]
   (set-result ctx (look-up-variable ctx token)))
+
+(defmethod evaluate :expr/super
+  [ctx {:keys [token param]}]
+  (let [super (look-up-variable ctx token)
+        this (look-up-local-variable-at-offset ctx token -1 {:lexeme "this"})
+        method (find-method super param)]
+    (when-not method
+      (throw
+       (errors/runtime-error param
+                             (str "Undefined property '" (:lexeme param) "'."))))
+    (set-result ctx (bind-this-env method this))))
 
 (defn- set-env-local! [ctx name-token val]
   (if-let [depth (get-in ctx [:locals name-token])]
@@ -365,16 +381,21 @@
 
 (defmethod execute :stmt/class
   [env {:keys [name-token super-class methods] :as declaration}]
-  (let [method-fns (reduce (fn [acc {:keys [name-token] :as declaration}]
-                             (assoc acc (:lexeme name-token)
-                                    (->Function declaration env
-                                                (if (= (:lexeme name-token) "init")
-                                                  true
-                                                  false))))
+  (let [super-class-instansce (when super-class
+                                (look-up-variable env (:name-token super-class)))
+        method-fns (reduce (fn [acc {:keys [name-token] :as declaration}]
+                             (let [env (if super-class
+                                         (-> env
+                                             env/enclose-env
+                                             (define-local-env! "super" super-class-instansce))
+                                         env)]
+                               (assoc acc (:lexeme name-token)
+                                      (->Function declaration env
+                                                  (if (= (:lexeme name-token) "init")
+                                                    true
+                                                    false)))))
                            {}
-                           methods)
-        super-class-instansce (when super-class
-                                (look-up-variable env (:name-token super-class)))]
+                           methods)]
     (when super-class
       (when-not (instance? clox.interpreter.ClassDeclaration super-class-instansce)
         (throw (errors/runtime-error name-token
@@ -402,12 +423,7 @@
            statements)))
 
 
-
-
 (defn interpret [stmts envirement locals]
-  ;; (println "ENV: ")
-  ;; (clojure.pprint/pprint envirement)
-  ;; (println)
   (reduce (fn [ctx stmt]
             (execute ctx stmt))
           (update (or envirement (global-envirement))

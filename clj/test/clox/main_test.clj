@@ -434,5 +434,46 @@ kolya.intro();
 "
    "My name is Kolya")
 
+  (run-intersept
+   "
+class A {
+  method() {
+    print \"A method\";
+  }
+}
+
+class B < A {
+  method() {
+    print \"B method\";
+  }
+
+  test() {
+    super.method();
+  }
+}
+
+class C < B {}
+
+C().test();
+"
+   "A method"
+   )
+
+  (run-intersept
+   "
+class Person {
+}
+
+class User < Person {
+  init(nm) {
+    super.init(nm);
+  }
+}
+var kolya = User(\"Kolya\");
+"
+   "Undefined property 'init'. [line 7]")
+
+
+
 
   )

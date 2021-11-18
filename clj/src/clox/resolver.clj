@@ -154,7 +154,12 @@
                      ctx'))
         (assoc ::current-class ::class)
         (define* name-token)
-        (resolve-ast super-class)
+        (as-> ctx' (if super-class
+                     (-> ctx'
+                         (resolve-ast super-class)
+                         (push-scope)
+                         (define* {:lexeme "super"}))
+                     ctx'))
         (push-scope)
         (define* {:lexeme "this"})
         (as-> ctx'
@@ -167,11 +172,25 @@
                     ctx'
                     methods))
         (pop-scope)
+        (as-> ctx' (if super-class
+                     (-> ctx'
+                         (pop-scope))
+                     ctx'))
         (assoc ::current-class in-cur-class))))
 
 (defmethod resolve-ast :expr/this
   [ctx {:keys [token]}]
   (cond-> ctx
+    (= (::current-class ctx)
+       ::none)
+    (add-error token "Can't use 'this' outside of a class.")
+
+    :anyway (resolve-local token)))
+
+(defmethod resolve-ast :expr/super
+  [ctx {:keys [token _param]}]
+  (resolve-local ctx token)
+  #_(cond-> ctx
     (= (::current-class ctx)
        ::none)
     (add-error token "Can't use 'this' outside of a class.")

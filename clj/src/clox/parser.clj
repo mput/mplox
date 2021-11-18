@@ -133,6 +133,13 @@
     (match-token ctx ::scanner/this)
     (advance (set-ast-node ctx (ast/new :expr/this (get-current-token ctx))))
 
+    (match-token ctx ::scanner/super)
+    (-> ctx
+        (+token-param)
+        (consume-with-check ::scanner/dot "Expect '.' after 'super'.")
+        (+consume-with-check ::scanner/identifier "Expect superclass method name.")
+        (set-node :expr/super))
+
     (match-token ctx ::scanner/lparen)
     (let [lprn (advance ctx)
           grp (expression lprn)

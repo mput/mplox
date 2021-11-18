@@ -14,6 +14,7 @@
    :expr/literal [:value]
    :expr/variable [:name-token]
    :expr/this [:token]
+   :expr/super [:token :param]
 
    :stmt/expression [:expression]
    :stmt/block [:statements]
