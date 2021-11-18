@@ -444,6 +444,15 @@
 (defn- class-declaration [ctx]
   (let [ctx (-> ctx
                 (+consume-with-check ::scanner/identifier "Expect class name.")
+                (as-> ctx' (if (match-token ctx' ::scanner/less)
+                             (let [ctx'' (advance ctx')
+                                   var (ast/new :expr/variable
+                                                (get-current-token ctx''))]
+                               (-> ctx''
+                                   (consume-with-check ::scanner/identifier "Expect superclass name.")
+                                   (+arbitrary-param var)))
+                             (-> ctx'
+                                 (+arbitrary-param nil))))
                 (consume-with-check ::scanner/lbrace "Expect '{' before class body."))
         methods-ctx (loop [ctx' (+arbitrary-param ctx [])]
                       (if (or (match-token ctx' ::scanner/rbrace)
@@ -486,9 +495,6 @@
   (parse (:tokens (clox.scanner/scanner "help(1, 2)(777, 944);")))
 
 
-  (parse (:tokens (clox.scanner/scanner "class New {
-help (a) {print a;}
-me (a) {print a;}
-}")))
+  (parse (:tokens (clox.scanner/scanner "class New < Old{}")))
 
   )

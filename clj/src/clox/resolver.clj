@@ -128,12 +128,33 @@
       (define* name-token)
       (resolve-function declaration ::function)))
 
+{:type :stmt/class,
+ :name-token
+ {:type :clox.scanner/identifier,
+  :lexeme "New",
+  :line 1,
+  :token-id "b31f6f60-ba7a-4657-be0d-633c288098cd"},
+ :super-class
+ {:type :expr/variable,
+  :name-token
+  {:type :clox.scanner/identifier,
+   :lexeme "Old",
+   :line 1,
+   :token-id "a95bed26-2798-4bfb-80ca-306778878c01"}},
+ :methods []}
+
 (defmethod resolve-ast :stmt/class
-  [ctx {:keys [name-token methods]}]
-  (let [in-cur-class (::current-class ctx)]
+  [ctx {:keys [name-token super-class methods]}]
+  (let [in-cur-class (::current-class ctx)
+        super-class-name (get-in super-class [:name-token :lexeme])
+        class-name (get-in name-token [:lexeme])]
     (-> ctx
+        (as-> ctx' (if (= super-class-name class-name)
+                     (add-error ctx' name-token "A class can't inherit from itself.")
+                     ctx'))
         (assoc ::current-class ::class)
         (define* name-token)
+        (resolve-ast super-class)
         (push-scope)
         (define* {:lexeme "this"})
         (as-> ctx'

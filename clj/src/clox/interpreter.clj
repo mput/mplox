@@ -117,7 +117,7 @@
   (toString [this] (str (get-in this [:class* :name]) " instance")))
 
 (defrecord ClassDeclaration
-  [name methods]
+  [name methods super-class]
   LoxCallable
   (call [this env arguments]
     (let [instance (->Instance this (atom {}))
@@ -357,7 +357,7 @@
   (define-local-env! env (:lexeme name-token) (->Function declaration env false)))
 
 (defmethod execute :stmt/class
-  [env {:keys [name-token methods] :as declaration}]
+  [env {:keys [name-token super-class methods] :as declaration}]
   (let [method-fns (reduce (fn [acc {:keys [name-token] :as declaration}]
                              (assoc acc (:lexeme name-token)
                                     (->Function declaration env
@@ -365,8 +365,14 @@
                                                   true
                                                   false))))
                            {}
-                           methods)]
-    (define-local-env! env (:lexeme name-token) (->ClassDeclaration (:lexeme name-token) method-fns))))
+                           methods)
+        super-class-instansce (when super-class
+                                (look-up-variable env (:name-token super-class)))]
+    (when super-class
+      (when-not (instance? clox.interpreter.ClassDeclaration super-class-instansce)
+        (throw (errors/runtime-error name-token
+                                     "Superclass must be a class."))))
+    (define-local-env! env (:lexeme name-token) (->ClassDeclaration (:lexeme name-token) method-fns super-class))))
 
 
 (defmethod execute :stmt/return

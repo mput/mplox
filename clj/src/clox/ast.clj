@@ -22,7 +22,7 @@
    :stmt/print [:expression]
    :stmt/var [:name-token :initializer]
    :stmt/fun [:name-token :params :body]
-   :stmt/class [:name-token :methods]
+   :stmt/class [:name-token :super-class :methods]
    :stmt/return [:keyword-token :value-expr]})
 
 (defn new

@@ -383,9 +383,40 @@ class User {
   init() {
     return;
   }
-}"
+}
+"
    "")
 
+(run-intersept
+   "
+class Person {
+}
+
+class User < Person {
+}
+"
+   "")
+
+
+(run-intersept
+   "
+class User < User {
+}
+"
+   "A class can't inherit from itself. [line 2]" )
+
+
+(run-intersept
+   "
+var str = \"stirng\";
+class User < str {
+}
+"
+   "Superclass must be a class. [line 3]"
+   )
+
+;; "A class can't inherit from itself."
+;; "Superclass must be a class."
 
 
   )
