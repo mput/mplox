@@ -5,6 +5,6 @@ fun fib(n) {
 
 print "Hello Fib!";
 var before = clock();
-print fib(30);
+print fib(40);
 var after = clock();
 print after - before;
