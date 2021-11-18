@@ -473,7 +473,19 @@ var kolya = User(\"Kolya\");
 "
    "Undefined property 'init'. [line 7]")
 
+  (run-intersept
+   "
+class User {
+  init(nm) {
+    super.init(nm);
+  }
+}
+"
+   "Can't use 'super' in a class with no superclass. [line 4]")
 
+  (run-intersept
+   "super.init(nm);"
+   "Can't use 'super' outside of a class. [line 1]")
 
 
   )

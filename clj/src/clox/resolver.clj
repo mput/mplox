@@ -152,7 +152,9 @@
         (as-> ctx' (if (= super-class-name class-name)
                      (add-error ctx' name-token "A class can't inherit from itself.")
                      ctx'))
-        (assoc ::current-class ::class)
+        (assoc ::current-class (if super-class
+                                 ::subclass
+                                 ::class))
         (define* name-token)
         (as-> ctx' (if super-class
                      (-> ctx'
@@ -189,11 +191,14 @@
 
 (defmethod resolve-ast :expr/super
   [ctx {:keys [token _param]}]
-  (resolve-local ctx token)
-  #_(cond-> ctx
+  (cond-> ctx
     (= (::current-class ctx)
        ::none)
-    (add-error token "Can't use 'this' outside of a class.")
+    (add-error token "Can't use 'super' outside of a class.")
+
+    (= (::current-class ctx)
+       ::class)
+    (add-error token "Can't use 'super' in a class with no superclass.")
 
     :anyway (resolve-local token)))
 
